@@ -1,0 +1,129 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - link "API Gateway" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: API Gateway
+      - navigation [ref=e8]:
+        - link "Dashboard" [ref=e9] [cursor=pointer]:
+          - /url: /
+          - img [ref=e10]
+          - generic [ref=e13]: Dashboard
+        - generic [ref=e14]: Management
+        - link "Users" [ref=e15] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e16]
+          - generic [ref=e19]: Users
+        - button "UAM" [ref=e21]:
+          - img [ref=e22]
+          - generic [ref=e25]: UAM
+          - img [ref=e26]
+        - generic [ref=e29]:
+          - button "API Gateway" [ref=e30]:
+            - img [ref=e31]
+            - generic [ref=e34]: API Gateway
+            - img [ref=e35]
+          - generic [ref=e38]:
+            - link "Services" [ref=e39] [cursor=pointer]:
+              - /url: /gateway/services
+              - generic [ref=e41]: Services
+            - link "Routes" [ref=e42] [cursor=pointer]:
+              - /url: /gateway/routes
+              - generic [ref=e44]: Routes
+    - generic [ref=e45]:
+      - banner [ref=e46]:
+        - generic [ref=e47]:
+          - button [ref=e49]:
+            - img [ref=e50]
+          - generic [ref=e53]:
+            - button [ref=e55]:
+              - img [ref=e56]
+            - button "SA" [ref=e61]:
+              - generic [ref=e65]: SA
+      - main [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - heading "Gateway Routes" [level=1] [ref=e71]
+              - paragraph [ref=e72]: Kelola aturan routing (method + path pattern) dan permission per route.
+            - generic [ref=e73]:
+              - button "Refresh Cache Now" [ref=e74]:
+                - img [ref=e75]
+                - text: Refresh Cache Now
+              - button "Tambah Route" [ref=e78]:
+                - img [ref=e79]
+                - text: Tambah Route
+          - table [ref=e83]:
+            - rowgroup [ref=e84]:
+              - row "Service Method Path Pattern Permissions Match Mode Status Aksi" [ref=e85]:
+                - columnheader "Service" [ref=e86]:
+                  - generic [ref=e87]: Service
+                - columnheader "Method" [ref=e88]:
+                  - generic [ref=e89]: Method
+                - columnheader "Path Pattern" [ref=e90]:
+                  - generic [ref=e91]: Path Pattern
+                - columnheader "Permissions" [ref=e92]:
+                  - generic [ref=e93]: Permissions
+                - columnheader "Match Mode" [ref=e94]:
+                  - generic [ref=e95]: Match Mode
+                - columnheader "Status" [ref=e96]:
+                  - generic [ref=e97]: Status
+                - columnheader "Aksi" [ref=e98]:
+                  - generic [ref=e99]: Aksi
+            - rowgroup [ref=e100]:
+              - row "Belum ada route terdaftar. Klik \"Tambah Route\" untuk memulai." [ref=e101]:
+                - cell "Belum ada route terdaftar. Klik \"Tambah Route\" untuk memulai." [ref=e102]:
+                  - paragraph [ref=e103]: Belum ada route terdaftar. Klik "Tambah Route" untuk memulai.
+  - generic [ref=e107]:
+    - generic [ref=e108]:
+      - heading "Tambah Route" [level=3] [ref=e109]
+      - button [ref=e110]:
+        - img [ref=e111]
+    - generic [ref=e115]:
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - generic [ref=e118]: Service
+          - generic [ref=e119] [cursor=pointer]:
+            - generic [ref=e120]:
+              - combobox "User Service" [ref=e161]
+              - generic:
+                - generic: User Service
+              - button [ref=e162]
+            - generic [ref=e164]: User Service
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - generic [ref=e124]: Method
+            - combobox [ref=e126] [cursor=pointer]:
+              - generic:
+                - generic: GET
+              - button [ref=e127]
+          - generic [ref=e129]:
+            - generic [ref=e130]: Path Pattern
+            - textbox "Path Pattern" [ref=e132]:
+              - /placeholder: /user/:id atau /files/*
+              - text: /user/:id
+        - generic [ref=e133]:
+          - generic [ref=e134]: Permission Match Mode
+          - combobox [ref=e136] [cursor=pointer]:
+            - generic:
+              - generic: Any — cukup salah satu permission
+            - button [ref=e137]
+        - generic [ref=e139]:
+          - generic [ref=e140]: Permissions (kosong = publik)
+          - generic [ref=e141] [cursor=pointer]:
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - generic "service.index ❎" [ref=e213]:
+                  - generic [ref=e214]: service.index
+                - combobox "User Service" [ref=e165]
+              - button [ref=e217]
+            - generic [ref=e219]: service.index
+        - generic [ref=e146]:
+          - generic [ref=e147]: Rate Limit per Menit (opsional override)
+          - spinbutton "Rate Limit per Menit (opsional override)" [ref=e149]
+        - generic [ref=e150] [cursor=pointer]:
+          - checkbox "Aktif" [checked] [ref=e151]
+          - generic [ref=e152]: Aktif
+      - generic [ref=e153]:
+        - button "Batal" [ref=e154]
+        - button "Simpan" [ref=e155]

@@ -1,0 +1,42 @@
+- generic [ref=e1]:
+  - generic [ref=e25]:
+    - complementary [ref=e26]:
+      - link [ref=e28] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e29]: API Gateway
+      - navigation [ref=e30]:
+        - link [ref=e31] [cursor=pointer]:
+          - /url: /
+          - img [ref=e32]
+          - generic [ref=e35]: Dashboard
+        - generic [ref=e36]: Management
+        - link [ref=e37] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e38]
+          - generic [ref=e41]: Users
+        - button [ref=e43]:
+          - img [ref=e44]
+          - generic [ref=e47]: UAM
+          - img [ref=e48]
+        - button [ref=e52]:
+          - img [ref=e53]
+          - generic [ref=e56]: API Gateway
+          - img [ref=e57]
+    - generic [ref=e60]:
+      - banner [ref=e61]:
+        - generic [ref=e62]:
+          - button [ref=e64]:
+            - img [ref=e65]
+          - generic [ref=e68]:
+            - button [ref=e70]:
+              - img [ref=e71]
+            - button [ref=e76]:
+              - generic [ref=e80]: SA
+      - main [ref=e82]:
+        - generic [ref=e83]:
+          - heading [level=1] [ref=e84]: Dashboard
+          - paragraph [ref=e86]: Welcome to Vue Boilerplate with Vite + TypeScript
+  - dialog "Login Berhasil" [ref=e88]:
+    - heading "Login Berhasil" [level=2] [ref=e96]
+    - text: "!"
+    - button "Confirm" [active] [ref=e98]

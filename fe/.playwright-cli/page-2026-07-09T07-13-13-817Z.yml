@@ -1,0 +1,75 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - link "API Gateway" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e7]: API Gateway
+    - navigation [ref=e8]:
+      - link "Dashboard" [ref=e9] [cursor=pointer]:
+        - /url: /
+        - img [ref=e10]
+        - generic [ref=e13]: Dashboard
+      - generic [ref=e14]: Management
+      - link "Users" [ref=e15] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e16]
+        - generic [ref=e19]: Users
+      - button "UAM" [ref=e21]:
+        - img [ref=e22]
+        - generic [ref=e25]: UAM
+        - img [ref=e26]
+      - button "API Gateway" [ref=e30]:
+        - img [ref=e31]
+        - generic [ref=e34]: API Gateway
+        - img [ref=e35]
+      - link "Audit Log" [ref=e38] [cursor=pointer]:
+        - /url: /audit-logs
+        - img [ref=e39]
+        - generic [ref=e42]: Audit Log
+  - generic [ref=e43]:
+    - banner [ref=e44]:
+      - generic [ref=e45]:
+        - button [ref=e47]:
+          - img [ref=e48]
+        - generic [ref=e51]:
+          - button [ref=e53]:
+            - img [ref=e54]
+          - button "SA" [ref=e59]:
+            - generic [ref=e63]: SA
+    - main [ref=e65]:
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - heading "Audit Log" [level=1] [ref=e68]
+          - paragraph [ref=e69]: Histori perubahan konfigurasi Service & Route (create/update/delete).
+        - generic [ref=e70]:
+          - combobox [ref=e73] [cursor=pointer]:
+            - generic:
+              - generic: Route
+            - button [ref=e74]
+          - combobox [ref=e78] [cursor=pointer]:
+            - generic:
+              - generic: Semua Actor
+            - button [ref=e79]
+          - generic [ref=e81]:
+            - generic [ref=e82]: Dari Tanggal
+            - textbox [ref=e83]
+          - generic [ref=e84]:
+            - generic [ref=e85]: Sampai Tanggal
+            - textbox [ref=e86]
+        - table [ref=e88]:
+          - rowgroup [ref=e89]:
+            - row "Waktu Entity Type Entity ID Action Actor" [ref=e90]:
+              - columnheader "Waktu" [ref=e91]:
+                - generic [ref=e92]: Waktu
+              - columnheader "Entity Type" [ref=e93]:
+                - generic [ref=e94]: Entity Type
+              - columnheader "Entity ID" [ref=e95]:
+                - generic [ref=e96]: Entity ID
+              - columnheader "Action" [ref=e97]:
+                - generic [ref=e98]: Action
+              - columnheader "Actor" [ref=e99]:
+                - generic [ref=e100]: Actor
+          - rowgroup [ref=e101]:
+            - row "Belum ada aktivitas tercatat." [ref=e123]:
+              - cell "Belum ada aktivitas tercatat." [ref=e124]:
+                - paragraph [ref=e125]: Belum ada aktivitas tercatat.
+        - paragraph [ref=e110]: Klik baris untuk melihat detail perubahan (JSON).

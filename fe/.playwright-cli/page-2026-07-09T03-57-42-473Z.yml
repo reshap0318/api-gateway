@@ -1,0 +1,95 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - link [ref=e120] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: API Gateway
+      - navigation [ref=e8]:
+        - link [ref=e121] [cursor=pointer]:
+          - /url: /
+          - img [ref=e10]
+          - generic [ref=e13]: Dashboard
+        - generic [ref=e14]: Management
+        - link [ref=e122] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e16]
+          - generic [ref=e19]: Users
+        - button [ref=e123]:
+          - img [ref=e22]
+          - generic [ref=e25]: UAM
+          - img [ref=e26]
+        - generic [ref=e29]:
+          - button [ref=e124]:
+            - img [ref=e31]
+            - generic [ref=e34]: API Gateway
+            - img [ref=e35]
+          - generic [ref=e38]:
+            - link [ref=e125] [cursor=pointer]:
+              - /url: /gateway/services
+              - generic [ref=e41]: Services
+            - link [ref=e126] [cursor=pointer]:
+              - /url: /gateway/routes
+              - generic [ref=e44]: Routes
+    - generic [ref=e45]:
+      - banner [ref=e46]:
+        - generic [ref=e47]:
+          - button [ref=e49]:
+            - img [ref=e50]
+          - generic [ref=e53]:
+            - button [ref=e55]:
+              - img [ref=e56]
+            - button [ref=e127]:
+              - generic [ref=e65]: SA
+      - main [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - heading [level=1] [ref=e128]: Gateway Services
+              - paragraph [ref=e72]: Kelola upstream service yang bisa diakses lewat Gateway.
+            - button [ref=e129]:
+              - img [ref=e74]
+              - text: Tambah Service
+          - table [ref=e78]:
+            - rowgroup [ref=e79]:
+              - row [ref=e130]:
+                - columnheader [ref=e131]:
+                  - generic [ref=e82]: Nama
+                - columnheader [ref=e132]:
+                  - generic [ref=e84]: Base URL
+                - columnheader [ref=e133]:
+                  - generic [ref=e86]: Protocol
+                - columnheader [ref=e134]:
+                  - generic [ref=e88]: Rate Limit
+                - columnheader [ref=e135]:
+                  - generic [ref=e90]: Routes
+                - columnheader [ref=e136]:
+                  - generic [ref=e92]: Status
+                - columnheader [ref=e137]:
+                  - generic [ref=e94]: Aksi
+            - rowgroup [ref=e95]:
+              - row [ref=e138]:
+                - cell [ref=e139]: User Service
+                - cell [ref=e140]:
+                  - generic [ref=e99]:
+                    - img [ref=e100]
+                    - generic [ref=e103]: http://localhost:9001
+                - cell [ref=e141]:
+                  - generic [ref=e105]: http
+                - cell [ref=e142]: Default
+                - cell [ref=e143]: "0"
+                - cell [ref=e144]:
+                  - generic [ref=e109]: Aktif
+                - cell [ref=e110]:
+                  - generic [ref=e111]:
+                    - button [ref=e145]:
+                      - img [ref=e113]
+                    - button [ref=e146]:
+                      - img [ref=e117]
+  - dialog "Hapus Data" [ref=e148]:
+    - generic [ref=e150]: "!"
+    - heading "Hapus Data" [level=2] [ref=e151]
+    - generic [ref=e152]: Apakah Anda yakin ingin menghapus service ini? Tindakan ini tidak dapat dibatalkan.
+    - text: "!"
+    - generic [ref=e153]:
+      - button "Cancel" [ref=e154]
+      - button "Yes" [active] [ref=e155]

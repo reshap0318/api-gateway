@@ -1,0 +1,96 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - link [ref=e444] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: API Gateway
+      - navigation [ref=e8]:
+        - link [ref=e445] [cursor=pointer]:
+          - /url: /
+          - img [ref=e10]
+          - generic [ref=e13]: Dashboard
+        - generic [ref=e14]: Management
+        - link [ref=e446] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e16]
+          - generic [ref=e19]: Users
+        - button [ref=e447]:
+          - img [ref=e22]
+          - generic [ref=e25]: UAM
+          - img [ref=e26]
+        - generic [ref=e29]:
+          - button [ref=e448]:
+            - img [ref=e31]
+            - generic [ref=e34]: API Gateway
+            - img [ref=e35]
+          - generic [ref=e38]:
+            - link [ref=e449] [cursor=pointer]:
+              - /url: /gateway/services
+              - generic [ref=e41]: Services
+            - link [ref=e450] [cursor=pointer]:
+              - /url: /gateway/routes
+              - generic [ref=e44]: Routes
+    - generic [ref=e45]:
+      - banner [ref=e46]:
+        - generic [ref=e47]:
+          - button [ref=e49]:
+            - img [ref=e50]
+          - generic [ref=e53]:
+            - button [ref=e55]:
+              - img [ref=e56]
+            - button [ref=e451]:
+              - generic [ref=e65]: SA
+      - main [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - heading [level=1] [ref=e452]: Gateway Routes
+              - paragraph [ref=e72]: Kelola aturan routing (method + path pattern) dan permission per route.
+            - generic [ref=e73]:
+              - button [ref=e453]:
+                - img [ref=e313]
+                - text: Refresh Cache Now
+              - button [ref=e454]:
+                - img [ref=e79]
+                - text: Tambah Route
+          - table [ref=e83]:
+            - rowgroup [ref=e84]:
+              - row [ref=e455]:
+                - columnheader [ref=e456]:
+                  - generic [ref=e87]: Service
+                - columnheader [ref=e457]:
+                  - generic [ref=e89]: Method
+                - columnheader [ref=e458]:
+                  - generic [ref=e91]: Path Pattern
+                - columnheader [ref=e459]:
+                  - generic [ref=e93]: Permissions
+                - columnheader [ref=e460]:
+                  - generic [ref=e95]: Match Mode
+                - columnheader [ref=e461]:
+                  - generic [ref=e97]: Status
+                - columnheader [ref=e462]:
+                  - generic [ref=e99]: Aksi
+            - rowgroup [ref=e100]:
+              - row [ref=e463]:
+                - cell [ref=e464]: User Service
+                - cell [ref=e465]:
+                  - generic [ref=e466]: GET
+                - cell [ref=e467]:
+                  - code [ref=e468]: /user/:id
+                - cell [ref=e469]:
+                  - generic [ref=e471]: service.index
+                - cell [ref=e472]:
+                  - generic [ref=e473]: all
+                - cell [ref=e474]:
+                  - generic [ref=e475]: Aktif
+                - cell [ref=e476]:
+                  - generic [ref=e477]:
+                    - button [ref=e478]:
+                      - img [ref=e479]
+                    - button [ref=e482]:
+                      - img [ref=e483]
+  - dialog "Berhasil" [ref=e487]:
+    - heading "Berhasil" [level=2] [ref=e495]
+    - generic [ref=e496]: Route berhasil diperbarui.
+    - text: "!"
+    - button "Confirm" [active] [ref=e498]
