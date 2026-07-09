@@ -2,8 +2,8 @@ package templates
 
 import "fmt"
 
-// ResetPasswordEmail generates HTML template for reset password email.
-func ResetPasswordEmail(token, resetURL, appName string) string {
+// VerifyEmailTemplate generates HTML template for email verification.
+func VerifyEmailTemplate(verifyURL, appName string) string {
 	return fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -27,7 +27,7 @@ func ResetPasswordEmail(token, resetURL, appName string) string {
             overflow: hidden;
         }
         .header {
-            background-color: #0ea5e9;
+            background-color: #4f46e5;
             padding: 30px 20px;
             text-align: center;
         }
@@ -58,7 +58,7 @@ func ResetPasswordEmail(token, resetURL, appName string) string {
         }
         .button {
             display: inline-block;
-            background-color: #0ea5e9;
+            background-color: #4f46e5;
             color: #ffffff !important;
             text-decoration: none;
             padding: 14px 32px;
@@ -68,14 +68,14 @@ func ResetPasswordEmail(token, resetURL, appName string) string {
             transition: background-color 0.2s ease;
         }
         .button:hover {
-            background-color: #0284c7;
+            background-color: #4338ca;
         }
         .link-text {
             font-size: 13px;
             color: #6b7280;
             margin-bottom: 8px;
         }
-        .token-box {
+        .link {
             background-color: #f3f4f6;
             padding: 12px 16px;
             border-radius: 6px;
@@ -84,21 +84,17 @@ func ResetPasswordEmail(token, resetURL, appName string) string {
             color: #4b5563;
             word-break: break-all;
             margin-top: 0;
-            margin-bottom: 24px;
-            text-align: center;
-            letter-spacing: 1px;
-            font-weight: 600;
         }
-        .warning {
+        .info {
             display: flex;
             align-items: flex-start;
-            background-color: #fefce8;
-            border-left: 4px solid #eab308;
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
             padding: 16px;
             margin-top: 30px;
             border-radius: 0 6px 6px 0;
             font-size: 14px;
-            color: #854d0e;
+            color: #1e3a8a;
         }
         .footer {
             text-align: center;
@@ -119,22 +115,19 @@ func ResetPasswordEmail(token, resetURL, appName string) string {
             <h1>%s</h1>
         </div>
         <div class="content">
-            <h2>Permintaan Reset Password</h2>
+            <h2>Verifikasi Email Anda</h2>
             <p>Halo,</p>
-            <p>Kami menerima permintaan untuk mengatur ulang kata sandi akun Anda. Anda dapat mereset kata sandi dengan mengklik tombol di bawah ini:</p>
-            
+            <p>Terima kasih telah mendaftar di <strong>%s</strong>! Untuk menyelesaikan proses registrasi dan mengamankan akun Anda, silakan verifikasi alamat email Anda dengan mengklik tombol di bawah ini:</p>
+
             <div class="button-container">
-                <a href="%s" class="button">Reset Kata Sandi</a>
+                <a href="%s" class="button">Verifikasi Email Sekarang</a>
             </div>
-            
+
             <p class="link-text">Atau salin dan tempel tautan berikut ke browser Anda:</p>
-            <p class="token-box" style="text-align: left; font-weight: normal; letter-spacing: normal;">%s</p>
-            
-            <p class="link-text">Kode Token Manual:</p>
-            <p class="token-box">%s</p>
-            
-            <div class="warning">
-                <span><strong>Penting:</strong> Tautan ini hanya berlaku selama 1 jam. Jika Anda tidak meminta pengaturan ulang kata sandi, harap abaikan email ini atau segera hubungi layanan dukungan kami.</span>
+            <p class="link">%s</p>
+
+            <div class="info">
+                <span><strong>Info:</strong> Tautan verifikasi ini hanya berlaku selama 24 jam. Jika Anda merasa tidak mendaftar di %s, Anda dapat mengabaikan email ini dengan aman.</span>
             </div>
         </div>
         <div class="footer">
@@ -144,5 +137,5 @@ func ResetPasswordEmail(token, resetURL, appName string) string {
     </div>
 </body>
 </html>
-`, appName, resetURL, resetURL, token, appName)
+`, appName, appName, verifyURL, verifyURL, appName, appName)
 }
