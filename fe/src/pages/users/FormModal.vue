@@ -6,17 +6,14 @@ import {
   FormSelect,
   FormAvatar,
   UiButton,
-  UiBadge,
 } from '@/components/utils'
 import { computed, ref, onMounted } from 'vue'
 import useVuelidate from '@vuelidate/core'
 import { useUserStore } from '@/stores/user'
-import type { TUserStatus } from '@/stores/user'
 import { useRoleStore } from '@/stores/role'
 import type { IRole } from '@/stores/role'
 import { minLength } from '@vuelidate/validators'
 import { useFormError } from '@/composables/useFormError'
-import swal from '@/plugins/swal'
 
 const userStore = useUserStore()
 const roleStore = useRoleStore()
@@ -26,51 +23,6 @@ const isEdit = computed(() => !!userStore.form.id)
 const allRoles = ref<IRole[]>([])
 const rolesLoading = ref(false)
 const currentAvatar = ref<string | null>(null)
-
-// User Status & Lock Panel (§FSD 3.7) — independent action, immediate effect, not bundled
-// into the main form submit (backend exposes these as separate endpoints).
-const currentStatus = ref<TUserStatus>('active')
-const currentLockedUntil = ref<string | null>(null)
-const statusSaving = ref(false)
-const unlocking = ref(false)
-
-const statusOptions: { value: TUserStatus; label: string }[] = [
-  { value: 'active', label: 'Active' },
-  { value: 'suspended', label: 'Suspend' },
-]
-
-const isLocked = computed(() => {
-  if (!currentLockedUntil.value) return false
-  return new Date(currentLockedUntil.value).getTime() > Date.now()
-})
-
-async function handleStatusChange(newStatus: TUserStatus) {
-  if (!userStore.form.id || newStatus === currentStatus.value) return
-  statusSaving.value = true
-  try {
-    const updated = await userStore.updateStatus(userStore.form.id, newStatus)
-    if (updated) currentStatus.value = updated.status
-    swal.success('Berhasil', 'Status user berhasil diperbarui.')
-  } catch {
-    swal.error('Gagal', 'Gagal memperbarui status user.')
-  } finally {
-    statusSaving.value = false
-  }
-}
-
-async function handleUnlock() {
-  if (!userStore.form.id) return
-  unlocking.value = true
-  try {
-    const updated = await userStore.unlock(userStore.form.id)
-    currentLockedUntil.value = updated?.locked_until ?? null
-    swal.success('Berhasil', 'Akun berhasil dibuka kuncinya.')
-  } catch {
-    swal.error('Gagal', 'Gagal membuka kunci akun.')
-  } finally {
-    unlocking.value = false
-  }
-}
 
 const dynamicRules = computed(() => {
   if (isEdit.value) {
@@ -107,8 +59,6 @@ async function show(data?: {
   email: string
   avatar?: string | null
   roles?: { id: number }[]
-  status?: TUserStatus
-  locked_until?: string | null
 }) {
   if (data) {
     userStore.form.id = data.id
@@ -119,8 +69,6 @@ async function show(data?: {
     userStore.form.roles = data.roles?.map((r) => r.id) || []
     userStore.form.avatar = null
     currentAvatar.value = data.avatar || null
-    currentStatus.value = data.status || 'active'
-    currentLockedUntil.value = data.locked_until || null
   } else {
     userStore.form.id = undefined
     userStore.form.name = ''
@@ -130,8 +78,6 @@ async function show(data?: {
     userStore.form.roles = []
     userStore.form.avatar = null
     currentAvatar.value = null
-    currentStatus.value = 'active'
-    currentLockedUntil.value = null
   }
   v$.value.$reset()
   formError.clear()
@@ -219,42 +165,6 @@ defineExpose({ show, close })
           :searchable="true"
           :loading="rolesLoading"
         />
-
-        <!-- User Status & Lock Panel (§FSD 3.7) — edit-only, immediate effect actions -->
-        <div v-if="isEdit" class="border border-gray-200 rounded-lg p-4 space-y-3">
-          <h4 class="text-sm font-semibold text-gray-800">Status & Lock</h4>
-
-          <div class="flex items-center gap-3">
-            <FormSelect
-              :model-value="currentStatus"
-              name="status"
-              label="Status"
-              :options="statusOptions"
-              :disabled="statusSaving"
-              :classes="{ wrapper: 'flex-1' }"
-              @update:model-value="(value) => handleStatusChange(value as TUserStatus)"
-            />
-          </div>
-
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-600">Lock:</span>
-              <UiBadge v-if="isLocked" color="danger">Locked</UiBadge>
-              <UiBadge v-else color="primary">Unlocked</UiBadge>
-            </div>
-            <UiButton
-              v-if="isLocked"
-              type="button"
-              size="sm"
-              variant="secondary"
-              outline
-              :loading="unlocking"
-              @click="handleUnlock"
-            >
-              Unlock Now
-            </UiButton>
-          </div>
-        </div>
       </div>
 
       <!-- Actions -->

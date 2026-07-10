@@ -57,7 +57,7 @@ function onInput(event: Event) {
         :value="props.modelValue"
         :placeholder="props.placeholder"
         :class="[
-          'w-full rounded-md border px-3 py-2 outline-none transition',
+          'w-full rounded-md border px-3 py-2 outline-none transition bg-white',
           'border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
           hasError && 'border-red-500 focus:border-red-500 focus:ring-red-500',
           hasPrefix && 'pl-10',

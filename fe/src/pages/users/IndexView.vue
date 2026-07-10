@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { UiCard, UiButton, UiPagination, UiEmptyState, UiSkeleton } from '@/components/utils'
 import FormModal from './FormModal.vue'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { IUser } from '@/stores/user'
 import { usePermission } from '@/composables'
@@ -12,13 +12,19 @@ import {
   PhEnvelope,
   PhCalendar,
   PhCrown,
-  PhDotsThreeVertical,
+  PhShieldCheck,
+  PhShieldSlash,
+  PhProhibit,
+  PhCheckCircle,
+  PhLockKey,
+  PhLockKeyOpen,
 } from '@phosphor-icons/vue'
 
 const userStore = useUserStore()
 const { hasAllPermissions } = usePermission()
 const formModalRef = ref<InstanceType<typeof FormModal> | null>(null)
-const openMenuId = ref<number | null>(null)
+const statusUpdatingId = ref<number | null>(null)
+const unlockingId = ref<number | null>(null)
 
 const colorPalette = [
   'bg-blue-500',
@@ -51,22 +57,43 @@ function openCreate() {
 }
 
 function openEdit(user: IUser) {
-  openMenuId.value = null
   formModalRef.value?.show(user)
 }
 
 async function handleDelete(id: number) {
-  openMenuId.value = null
   await userStore.remove(id)
 }
 
-function toggleMenu(userId: number, event: Event) {
-  event.stopPropagation()
-  openMenuId.value = openMenuId.value === userId ? null : userId
+async function updateStatus(id: number, status: 'active' | 'suspended') {
+  statusUpdatingId.value = id
+  try {
+    await userStore.updateStatus(id, status)
+    await userStore.fetchAll(userStore.indexData.pagination.page)
+  } finally {
+    statusUpdatingId.value = null
+  }
 }
 
-function handleClickOutside() {
-  openMenuId.value = null
+function handleSuspend(id: number) {
+  updateStatus(id, 'suspended')
+}
+
+function handleActivate(id: number) {
+  updateStatus(id, 'active')
+}
+
+function isLocked(user: IUser): boolean {
+  return !!user.locked_until && new Date(user.locked_until).getTime() > Date.now()
+}
+
+async function handleUnlock(id: number) {
+  unlockingId.value = id
+  try {
+    await userStore.unlock(id)
+    await userStore.fetchAll(userStore.indexData.pagination.page)
+  } finally {
+    unlockingId.value = null
+  }
 }
 
 function handlePageChange(page: number) {
@@ -75,11 +102,6 @@ function handlePageChange(page: number) {
 
 onMounted(() => {
   userStore.fetchAll()
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -135,83 +157,52 @@ onUnmounted(() => {
         <UiCard
           v-for="(user, index) in userStore.indexData.items"
           :key="user.id"
+          :padded="false"
           :classes="{
-            wrapper: 'h-full relative',
-            card: 'group hover:shadow-md transition-all duration-200 h-full border-t-4 border-blue-500',
-            body: 'p-4',
+            wrapper: 'h-full',
+            card: `group hover:shadow-md transition-all duration-200 h-full rounded-t-2xl border-t-4 ${
+              user.status === 'active' ? 'border-emerald-500' : 'border-red-500'
+            }`,
+            body: 'flex flex-col h-full',
           }"
         >
           <!-- Content -->
-          <div class="flex flex-col">
-            <!-- Avatar + Name + Email + Action -->
-            <div class="flex items-center gap-3 mb-0">
-              <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 shadow-sm">
-                <img
-                  v-if="user.avatar"
-                  :src="user.avatar"
-                  :alt="user.name"
-                  class="w-full h-full object-cover"
-                />
-                <div
-                  v-else
-                  :class="[
-                    'flex items-center justify-center w-full h-full text-sm font-bold',
-                    getAvatarBg(index),
-                  ]"
-                >
-                  <span class="text-white">{{ getInitials(user.name) }}</span>
-                </div>
-              </div>
-              <div class="min-w-0 flex-1">
-                <h3 class="text-sm font-semibold text-gray-900 truncate">
-                  {{ user.name }}
-                </h3>
-                <p class="text-xs text-gray-500 truncate flex items-center gap-1 leading-none">
-                  <PhEnvelope class="w-3 h-3 shrink-0 mt-0.5" />
-                  <span class="truncate">{{ user.email }}</span>
-                </p>
-              </div>
-              <!-- 3-Dot Menu -->
-              <div class="relative shrink-0">
-                <button
-                  class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  @click="toggleMenu(user.id, $event)"
-                >
-                  <PhDotsThreeVertical class="w-5 h-5" />
-                </button>
-
-                <!-- Dropdown Menu -->
-                <div
-                  v-if="openMenuId === user.id"
-                  class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-10"
-                  @click.stop
-                >
-                  <button
-                    v-if="hasAllPermissions(['user.edit'])"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    @click="openEdit(user)"
-                  >
-                    <PhPencil class="w-4 h-4 text-blue-600" />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    v-if="hasAllPermissions(['user.delete'])"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    :disabled="userStore.loading.Delete"
-                    @click="handleDelete(user.id)"
-                  >
-                    <PhTrash class="w-4 h-4" />
-                    <span>Hapus</span>
-                  </button>
-                </div>
+          <div class="flex flex-col items-center text-center p-5 flex-1">
+            <!-- Avatar -->
+            <div class="w-16 h-16 rounded-full overflow-hidden shrink-0 shadow-sm">
+              <img
+                v-if="user.avatar"
+                :src="user.avatar"
+                :alt="user.name"
+                class="w-full h-full object-cover"
+              />
+              <div
+                v-else
+                :class="[
+                  'flex items-center justify-center w-full h-full text-lg font-bold',
+                  getAvatarBg(index),
+                ]"
+              >
+                <span class="text-white">{{ getInitials(user.name) }}</span>
               </div>
             </div>
 
+            <!-- Name + Email -->
+            <h3 class="mt-3 text-sm font-semibold text-gray-900 truncate w-full">
+              {{ user.name }}
+            </h3>
+            <p
+              class="text-xs text-gray-500 truncate flex items-center justify-center gap-1 mt-0.5 w-full"
+            >
+              <PhEnvelope class="w-3.5 h-3.5 shrink-0" />
+              <span class="truncate">{{ user.email }}</span>
+            </p>
+
             <!-- Divider -->
-            <div class="my-3 border-t border-gray-100"></div>
+            <div class="my-4 border-t border-gray-100 w-full"></div>
 
             <!-- Info Section -->
-            <div class="space-y-3">
+            <div class="w-full space-y-3 text-left">
               <!-- Joined Date -->
               <div class="flex items-center gap-2 text-xs">
                 <div
@@ -220,10 +211,33 @@ onUnmounted(() => {
                   <PhCalendar class="w-3.5 h-3.5" />
                 </div>
                 <span class="text-gray-600">{{ formatDate(user.created_at) }}</span>
+
+                <span
+                  class="ml-auto inline-flex items-center justify-center w-6 h-6 rounded-full"
+                  :class="
+                    user.status === 'active'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-red-50 text-red-600'
+                  "
+                  :title="user.status === 'active' ? 'Aktif' : 'Suspended'"
+                >
+                  <PhShieldCheck v-if="user.status === 'active'" class="w-3.5 h-3.5" />
+                  <PhShieldSlash v-else class="w-3.5 h-3.5" />
+                </span>
+
+                <span
+                  class="inline-flex items-center justify-center w-6 h-6 rounded-full"
+                  :class="
+                    isLocked(user) ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'
+                  "
+                  :title="isLocked(user) ? 'Locked' : 'Unlocked'"
+                >
+                  <PhLockKey class="w-3.5 h-3.5" />
+                </span>
               </div>
 
               <!-- Roles -->
-              <div v-if="user.roles?.length" class="flex items-center gap-2">
+              <div class="flex items-center gap-2">
                 <div
                   class="flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 text-blue-600 shrink-0"
                 >
@@ -231,21 +245,72 @@ onUnmounted(() => {
                 </div>
                 <div class="flex flex-wrap gap-1 min-w-0 flex-1">
                   <span
-                    v-for="role in user.roles.slice(0, 2)"
+                    v-for="role in user.roles?.slice(0, 2)"
                     :key="role.id"
                     class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 truncate"
                   >
                     {{ role.name }}
                   </span>
                   <span
-                    v-if="user.roles.length > 2"
+                    v-if="user.roles && user.roles.length > 2"
                     class="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-500"
                   >
                     +{{ user.roles.length - 2 }}
                   </span>
+                  <span v-if="!user.roles?.length" class="text-xs text-gray-400">Tanpa role</span>
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- Footer Actions -->
+          <div
+            class="border-t border-gray-100 bg-gray-50/80 px-3 py-2 flex items-center justify-end gap-0.5 flex-wrap"
+          >
+            <button
+              v-if="hasAllPermissions(['user.edit']) && user.status !== 'suspended'"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors disabled:opacity-50"
+              :disabled="statusUpdatingId === user.id"
+              @click="handleSuspend(user.id)"
+            >
+              <PhProhibit class="w-3.5 h-3.5" />
+              Suspend
+            </button>
+            <button
+              v-if="hasAllPermissions(['user.edit']) && user.status === 'suspended'"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-50"
+              :disabled="statusUpdatingId === user.id"
+              @click="handleActivate(user.id)"
+            >
+              <PhCheckCircle class="w-3.5 h-3.5" />
+              Aktifkan
+            </button>
+            <button
+              v-if="hasAllPermissions(['user.edit']) && isLocked(user)"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-md transition-colors disabled:opacity-50"
+              :disabled="unlockingId === user.id"
+              @click="handleUnlock(user.id)"
+            >
+              <PhLockKeyOpen class="w-3.5 h-3.5" />
+              Unlock
+            </button>
+            <button
+              v-if="hasAllPermissions(['user.edit'])"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+              @click="openEdit(user)"
+            >
+              <PhPencil class="w-3.5 h-3.5" />
+              Edit
+            </button>
+            <button
+              v-if="hasAllPermissions(['user.delete'])"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+              :disabled="userStore.loading.Delete"
+              @click="handleDelete(user.id)"
+            >
+              <PhTrash class="w-3.5 h-3.5" />
+              Hapus
+            </button>
           </div>
         </UiCard>
       </div>

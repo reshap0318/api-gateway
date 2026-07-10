@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { UiButton, UiTable, UiPagination, UiBadge, FormInput, FormSelect } from '@/components/utils'
+import {
+  UiCard,
+  UiButton,
+  UiPagination,
+  UiEmptyState,
+  UiSkeleton,
+  FormInput,
+  FormSelect,
+} from '@/components/utils'
 import FormModal from './FormModal.vue'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useGatewayServiceStore } from '@/stores/gatewayService'
 import type { IGatewayService } from '@/stores/gatewayService'
 import { usePermission } from '@/composables'
@@ -13,25 +21,13 @@ import {
   PhLink,
   PhMagnifyingGlass,
   PhHeartbeat,
+  PhClockCounterClockwise,
 } from '@phosphor-icons/vue'
-import type { TTableColumn } from '@/components/utils/types'
 
 const serviceStore = useGatewayServiceStore()
 const { hasAllPermissions } = usePermission()
 const formModalRef = ref<InstanceType<typeof FormModal> | null>(null)
 const healthChecking = ref<number | null>(null)
-
-const columns: TTableColumn[] = [
-  { title: 'Nama', data: 'name', sortable: false },
-  { title: 'Base URL', data: 'base_url', sortable: false },
-  { title: 'Protocol', data: 'protocol', sortable: false },
-  { title: 'Rate Limit', data: 'rate_limit_per_minute', sortable: false },
-  { title: 'Health Status', data: 'health_status', sortable: false },
-  { title: 'Status', data: 'is_active', sortable: false },
-  { title: 'Aksi', data: 'actions', sortable: false, class: 'text-right' },
-]
-
-const rows = computed(() => serviceStore.indexData.items as unknown as Record<string, unknown>[])
 
 // Filters (§FSD 3.2) — search debounced, filters applied immediately.
 const search = ref('')
@@ -57,10 +53,39 @@ const healthStatusOptions = [
   { value: 'unknown', label: 'Unknown' },
 ]
 
-function healthBadgeColor(status: string): 'primary' | 'danger' | 'warning' {
-  if (status === 'up') return 'primary'
-  if (status === 'down') return 'danger'
-  return 'warning'
+function healthLabel(status: IGatewayService['health_status']): string {
+  if (status === 'up') return 'Operational'
+  if (status === 'down') return 'Down'
+  return 'Belum Diketahui'
+}
+
+function healthBannerClass(status: IGatewayService['health_status']): string {
+  if (status === 'up') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'down') return 'bg-red-50 text-red-700'
+  return 'bg-amber-50 text-amber-700'
+}
+
+function healthDotClass(status: IGatewayService['health_status']): string {
+  if (status === 'up') return 'bg-emerald-500'
+  if (status === 'down') return 'bg-red-500'
+  return 'bg-amber-400'
+}
+
+function healthBorderClass(status: IGatewayService['health_status']): string {
+  if (status === 'up') return 'border-emerald-500'
+  if (status === 'down') return 'border-red-500'
+  return 'border-amber-400'
+}
+
+function formatDateTime(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function applyFilters(page = 1) {
@@ -145,88 +170,177 @@ onMounted(() => {
       />
     </div>
 
-    <UiTable :columns="columns" :datas="rows" :is-loading="serviceStore.loading.Index">
-      <template #base_url="{ item }">
-        <span class="inline-flex items-center gap-1 text-gray-600">
-          <PhLink class="w-3.5 h-3.5 shrink-0" />
-          <span class="truncate max-w-xs">{{ (item as unknown as IGatewayService).base_url }}</span>
-        </span>
-      </template>
-
-      <template #protocol="{ item }">
-        <UiBadge
-          :color="
-            (item as unknown as IGatewayService).protocol === 'websocket' ? 'info' : 'primary'
-          "
-        >
-          {{ (item as unknown as IGatewayService).protocol }}
-        </UiBadge>
-      </template>
-
-      <template #rate_limit_per_minute="{ item }">
-        <span class="text-gray-600">
-          {{ (item as unknown as IGatewayService).rate_limit_per_minute ?? 'Default' }}
-        </span>
-      </template>
-
-      <template #health_status="{ item }">
-        <UiBadge :color="healthBadgeColor((item as unknown as IGatewayService).health_status)">
-          {{ (item as unknown as IGatewayService).health_status }}
-        </UiBadge>
-      </template>
-
-      <template #is_active="{ item }">
-        <UiBadge :color="(item as unknown as IGatewayService).is_active ? 'primary' : 'danger'">
-          {{ (item as unknown as IGatewayService).is_active ? 'Aktif' : 'Nonaktif' }}
-        </UiBadge>
-      </template>
-
-      <template #actions="{ item }">
-        <div class="flex justify-end gap-1">
-          <button
-            v-if="hasAllPermissions(['service.health-check'])"
-            class="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-50"
-            title="Health Check"
-            :disabled="healthChecking === (item as unknown as IGatewayService).id"
-            @click="handleHealthCheck((item as unknown as IGatewayService).id)"
-          >
-            <PhHeartbeat class="w-4 h-4" />
-          </button>
-          <button
-            v-if="hasAllPermissions(['service.edit'])"
-            class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-            title="Edit"
-            @click="openEdit(item as unknown as IGatewayService)"
-          >
-            <PhPencil class="w-4 h-4" />
-          </button>
-          <button
-            v-if="hasAllPermissions(['service.delete'])"
-            class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-            title="Hapus"
-            :disabled="serviceStore.loading.Delete"
-            @click="handleDelete((item as unknown as IGatewayService).id)"
-          >
-            <PhTrash class="w-4 h-4" />
-          </button>
-        </div>
-      </template>
-
-      <template #empty>
-        <p class="text-gray-500">
-          Belum ada service terdaftar. Klik "Tambah Service" untuk memulai.
-        </p>
-      </template>
-    </UiTable>
-
-    <!-- Pagination -->
-    <div class="mt-6 flex justify-center">
-      <UiPagination
-        :page="serviceStore.indexData.pagination.page"
-        :total-pages="serviceStore.indexData.pagination.total_pages"
-        @update:page="handlePageChange"
+    <!-- Loading State -->
+    <div v-if="serviceStore.loading.Index" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <UiSkeleton
+        v-for="i in serviceStore.indexData.pagination.page_size"
+        :key="i"
+        variant="rect"
+        width="w-full"
+        height="h-52"
+        rounded
       />
     </div>
+
+    <!-- Empty State -->
+    <UiEmptyState
+      v-else-if="serviceStore.indexData.items.length === 0"
+      :icon="PhHeartbeat"
+      title="Belum ada Service"
+      description="Silakan daftarkan upstream service baru untuk mulai memantau statusnya."
+    >
+      <UiButton v-if="hasAllPermissions(['service.create'])" size="lg" @click="openCreate">
+        <template #icon>
+          <PhPlus class="w-5 h-5" />
+        </template>
+        Tambah Service Pertama
+      </UiButton>
+    </UiEmptyState>
+
+    <!-- Data Grid -->
+    <template v-else>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <UiCard
+          v-for="service in serviceStore.indexData.items"
+          :key="service.id"
+          :padded="false"
+          :classes="{
+            wrapper: 'h-full',
+            card: `group hover:shadow-md transition-all duration-200 h-full rounded-t-2xl border-t-4 ${healthBorderClass(
+              service.health_status,
+            )}`,
+            body: 'flex flex-col h-full',
+          }"
+        >
+          <div class="p-4 flex-1 flex flex-col">
+            <!-- Name + Health Status Pill -->
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="text-sm font-semibold text-gray-900 truncate min-w-0">
+                {{ service.name }}
+              </h3>
+              <span
+                class="shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+                :class="healthBannerClass(service.health_status)"
+                :title="
+                  service.health_checked_at
+                    ? `Terakhir dicek: ${formatDateTime(service.health_checked_at)}`
+                    : 'Belum pernah dicek'
+                "
+              >
+                <span class="relative flex w-2 h-2">
+                  <span
+                    v-if="service.health_status === 'up'"
+                    class="animate-ping absolute inline-flex w-full h-full rounded-full opacity-75"
+                    :class="healthDotClass(service.health_status)"
+                  ></span>
+                  <span
+                    class="relative inline-flex rounded-full w-2 h-2"
+                    :class="healthDotClass(service.health_status)"
+                  ></span>
+                </span>
+                {{ healthLabel(service.health_status) }}
+              </span>
+            </div>
+
+            <!-- Divider -->
+            <div class="mt-2.5 mb-2 border-t border-gray-100"></div>
+
+            <!-- Meta Grid -->
+            <div class="grid grid-cols-2 gap-y-2 gap-x-2 text-xs">
+              <div>
+                <p class="text-gray-400">Protocol</p>
+                <p class="font-medium text-gray-700 uppercase">{{ service.protocol }}</p>
+              </div>
+              <div>
+                <p class="text-gray-400">Rate Limit</p>
+                <p class="font-medium text-gray-700">
+                  {{ service.rate_limit_per_minute ?? 'Default' }}
+                </p>
+              </div>
+              <div>
+                <p class="text-gray-400">Routes</p>
+                <p class="font-medium text-gray-700">{{ service.route_count }}</p>
+              </div>
+              <div>
+                <p class="text-gray-400">Status</p>
+                <p
+                  class="font-medium"
+                  :class="service.is_active ? 'text-emerald-600' : 'text-red-600'"
+                >
+                  {{ service.is_active ? 'Aktif' : 'Nonaktif' }}
+                </p>
+              </div>
+            </div>
+
+            <!-- URL & Last Checked (same label/value style as meta grid) -->
+            <div class="mt-auto pt-2.5 grid grid-cols-2 gap-y-2 gap-x-2 text-xs">
+              <div class="min-w-0">
+                <p class="text-gray-400">URL</p>
+                <p class="font-medium text-gray-700 truncate flex items-center gap-1">
+                  <PhLink class="w-3 h-3 shrink-0" />
+                  <span class="truncate">{{ service.base_url }}</span>
+                </p>
+              </div>
+              <div class="min-w-0">
+                <p class="text-gray-400">Terakhir Dicek</p>
+                <p class="font-medium text-gray-700 truncate flex items-center gap-1">
+                  <PhClockCounterClockwise class="w-3 h-3 shrink-0" />
+                  <span class="truncate">{{
+                    service.health_checked_at
+                      ? formatDateTime(service.health_checked_at)
+                      : 'Belum pernah dicek'
+                  }}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer Actions -->
+          <div
+            class="border-t border-gray-100 bg-gray-50/80 px-3 py-2 flex items-center justify-end gap-0.5 flex-wrap"
+          >
+            <button
+              v-if="hasAllPermissions(['service.health-check'])"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-md transition-colors disabled:opacity-50"
+              :disabled="healthChecking === service.id"
+              @click="handleHealthCheck(service.id)"
+            >
+              <PhHeartbeat
+                class="w-3.5 h-3.5"
+                :class="{ 'animate-pulse': healthChecking === service.id }"
+              />
+              Cek
+            </button>
+            <button
+              v-if="hasAllPermissions(['service.edit'])"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+              @click="openEdit(service)"
+            >
+              <PhPencil class="w-3.5 h-3.5" />
+              Edit
+            </button>
+            <button
+              v-if="hasAllPermissions(['service.delete'])"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-md transition-colors disabled:opacity-50"
+              :disabled="serviceStore.loading.Delete"
+              @click="handleDelete(service.id)"
+            >
+              <PhTrash class="w-3.5 h-3.5" />
+              Hapus
+            </button>
+          </div>
+        </UiCard>
+      </div>
+
+      <!-- Pagination -->
+      <div class="mt-6 flex justify-center">
+        <UiPagination
+          :page="serviceStore.indexData.pagination.page"
+          :total-pages="serviceStore.indexData.pagination.total_pages"
+          @update:page="handlePageChange"
+        />
+      </div>
+    </template>
   </div>
 
   <FormModal ref="formModalRef" />

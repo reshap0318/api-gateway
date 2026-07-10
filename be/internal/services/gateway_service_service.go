@@ -151,22 +151,26 @@ func (s *Services) GatewayServiceUpdate(ctx context.Context, id uint, req dtos.G
 		}
 	}
 
-	update := &models.GatewayService{
-		Name:               req.Name,
-		BaseURL:            req.BaseURL,
-		Protocol:           req.Protocol,
-		RateLimitPerMinute: req.RateLimitPerMinute,
-	}
+	isActive := existing.IsActive
 	if req.IsActive != nil {
-		update.IsActive = *req.IsActive
-	} else {
-		update.IsActive = existing.IsActive
+		isActive = *req.IsActive
+	}
+
+	// Struct-based Update() drops zero-value fields (false, nil) from the UPDATE
+	// statement, so is_active=false and a cleared rate_limit_per_minute would
+	// silently fail to persist — UpdateMap sends every key explicitly instead.
+	update := map[string]interface{}{
+		"name":                  req.Name,
+		"base_url":              req.BaseURL,
+		"protocol":              req.Protocol,
+		"rate_limit_per_minute": req.RateLimitPerMinute,
+		"is_active":             isActive,
 	}
 
 	var result *models.GatewayService
 	err = s.repo.TxManager.WithinTransaction(func(tx *gorm.DB) error {
 		var err error
-		result, err = s.repo.GatewayService.Update(tx, &models.GatewayService{ID: id}, update)
+		result, err = s.repo.GatewayService.UpdateMap(tx, &models.GatewayService{ID: id}, update)
 		return err
 	})
 	if err != nil {

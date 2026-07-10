@@ -97,15 +97,16 @@ onMounted(async () => {
       <FormSelect
         v-model="entityTypeFilter"
         name="entity_type_filter"
+        label="Entity Type"
         :options="entityTypeOptions"
       />
-      <FormSelect v-model="actorFilter" name="actor_filter" :options="actorOptions" />
+      <FormSelect v-model="actorFilter" name="actor_filter" label="Actor" :options="actorOptions" />
       <div>
         <label class="mb-1 block text-sm font-medium text-gray-700">Dari Tanggal</label>
         <input
           v-model="fromDate"
           type="date"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          class="h-[42px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         />
       </div>
       <div>
@@ -113,7 +114,7 @@ onMounted(async () => {
         <input
           v-model="toDate"
           type="date"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          class="h-[42px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         />
       </div>
     </div>
