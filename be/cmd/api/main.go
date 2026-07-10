@@ -40,12 +40,17 @@ func main() {
 		}
 	}
 
-	r.Use(middleware.RateLimit(container.RateLimiter))
 	r.Use(middleware.CORS(allowedOrigins))
 
 	r.Static("/storage", "./storage")
 
+	// Global RateLimit middleware is scoped to the Management API (/api/...) only — it must
+	// NOT wrap the engine root, otherwise every proxied request would first burn a token from
+	// this fixed .env-configured bucket before ever reaching the Dynamic Proxy Engine's own
+	// per-route limit (§2.15), making any per-Route/Service override larger than the global
+	// default unreachable in practice.
 	apiGroup := r.Group("/api")
+	apiGroup.Use(middleware.RateLimit(container.RateLimiter))
 	protected := apiGroup.Group("")
 	protected.Use(middleware.JWTAuth(container.Services))
 
@@ -54,7 +59,8 @@ func main() {
 	// Dynamic Proxy Engine catch-all: any request that doesn't match a Management API
 	// route above falls through here and is resolved against gateway_routes (§4.6).
 	// Rate limit is already resolved per-route by RouteManager (§2.15 chain); the handler
-	// just enforces it via the shared RateLimiter.
+	// just enforces it via the shared RateLimiter — the global RateLimit middleware above is
+	// scoped to /api and does not apply here.
 	r.NoRoute(proxy.Handler(container.RouteManager, container.Services, container.Access, container.RateLimiter))
 
 	addr := host + ":" + port

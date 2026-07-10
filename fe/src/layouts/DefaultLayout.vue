@@ -14,7 +14,7 @@ import type { IMenuItem } from '@/components/layouts/SidebarMenu.vue'
 import { usePermission } from '@/composables'
 
 const sidebarOpen = ref(false)
-const sidebarCollapsed = ref(false)
+const sidebarCollapsed = ref(true)
 const appName = import.meta.env.VITE_APP_NAME || 'Admin'
 
 const { hasAnyPermission } = usePermission()
