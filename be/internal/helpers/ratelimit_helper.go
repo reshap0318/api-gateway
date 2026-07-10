@@ -1,31 +1,9 @@
 package helpers
 
 import (
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
-
-// GetClientIP extracts the real client IP from a request, considering X-Forwarded-For
-// and X-Real-IP headers for proxied requests. Shared by middleware.RateLimit and the
-// Dynamic Proxy Engine's per-route rate limiting.
-func GetClientIP(r *http.Request, remoteAddrFallback string) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		ips := strings.Split(xff, ",")
-		if len(ips) > 0 {
-			if ip := strings.TrimSpace(ips[0]); ip != "" {
-				return ip
-			}
-		}
-	}
-
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-
-	return remoteAddrFallback
-}
 
 // nowFunc allows mocking time.Now() for testing
 var nowFunc = time.Now
@@ -48,6 +26,7 @@ type bucket struct {
 	mu         sync.Mutex
 	tokens     int
 	lastRefill time.Time
+	windowSecs int // window this bucket was last sized for, used by the reaper to detect staleness
 }
 
 // RateLimiter implements a token bucket rate limiter
@@ -57,11 +36,39 @@ type RateLimiter struct {
 	buckets    sync.Map // map[string]*bucket
 }
 
-// NewRateLimiter creates a new rate limiter
+// bucketReapInterval controls how often stale buckets are swept from memory. Buckets whose
+// window has been expired for a full window's length (i.e. no request has refreshed them) are
+// evicted, otherwise every distinct rate-limit key (e.g. per route+IP) accumulates forever.
+const bucketReapInterval = 5 * time.Minute
+
+// NewRateLimiter creates a new rate limiter and starts its background bucket reaper. The
+// reaper runs for the lifetime of the process since RateLimiter is a process-wide singleton.
 func NewRateLimiter(limit, windowSecs int) *RateLimiter {
-	return &RateLimiter{
+	rl := &RateLimiter{
 		limit:      limit,
 		windowSecs: windowSecs,
+	}
+	go rl.reapLoop()
+	return rl
+}
+
+// reapLoop periodically evicts buckets that have been idle for at least one full window past
+// their last refill, so a client hitting a route once doesn't leave a bucket in memory forever.
+func (rl *RateLimiter) reapLoop() {
+	ticker := time.NewTicker(bucketReapInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now()
+		rl.buckets.Range(func(key, value interface{}) bool {
+			b := value.(*bucket)
+			b.mu.Lock()
+			stale := now.Sub(b.lastRefill) >= 2*time.Duration(b.windowSecs)*time.Second
+			b.mu.Unlock()
+			if stale {
+				rl.buckets.Delete(key)
+			}
+			return true
+		})
 	}
 }
 
@@ -84,6 +91,7 @@ func (rl *RateLimiter) AllowWithLimit(key string, limit, windowSecs int) *RateLi
 	actual, loaded := rl.buckets.LoadOrStore(key, &bucket{
 		tokens:     limit - 1,
 		lastRefill: now,
+		windowSecs: windowSecs,
 	})
 	if !loaded {
 		return &RateLimitInfo{
@@ -106,6 +114,7 @@ func (rl *RateLimiter) AllowWithLimit(key string, limit, windowSecs int) *RateLi
 		// Refill tokens
 		b.tokens = limit - 1
 		b.lastRefill = now
+		b.windowSecs = windowSecs
 		resetTime = now.Add(time.Duration(windowSecs) * time.Second).Unix()
 		return &RateLimitInfo{
 			Limit:     limit,

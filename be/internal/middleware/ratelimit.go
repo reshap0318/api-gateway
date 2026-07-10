@@ -14,8 +14,11 @@ import (
 // It sets rate limit headers on all responses and returns 429 when limit exceeded.
 func RateLimit(limiter *helpers.RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get client IP (handle proxied requests)
-		ip := helpers.GetClientIP(c.Request, c.ClientIP())
+		// c.ClientIP() resolves the real client IP from X-Forwarded-For/X-Real-IP only when
+		// the immediate peer is in gin's configured TrustedProxies (see main.go) — trusting
+		// those headers unconditionally would let any client spoof a fresh IP per request and
+		// bypass rate limiting entirely.
+		ip := c.ClientIP()
 
 		// Check rate limit
 		info := limiter.Allow(ip)

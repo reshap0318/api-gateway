@@ -2,6 +2,11 @@ package proxy
 
 import (
 	"fmt"
+	"log"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -34,6 +39,29 @@ type CachedRoute struct {
 	// Service default → global `.env` default (FSD §2.15) — the proxy handler just uses it
 	// as-is, it never re-derives the chain per request.
 	RateLimit RateLimitConfig
+
+	// Proxy is built once per BaseURL at Refresh()-time and reused for every request matching
+	// this route, instead of allocating a new httputil.ReverseProxy per request. Nil if
+	// BaseURL failed to parse (proxyRequest reports 500 in that case).
+	Proxy *httputil.ReverseProxy
+}
+
+// newReverseProxy builds a *httputil.ReverseProxy targeting baseURL, wired with the same
+// upstream-unreachable JSON error response used across the Dynamic Proxy Engine.
+func newReverseProxy(baseURL string) (*httputil.ReverseProxy, error) {
+	target, err := url.Parse(baseURL)
+	if err != nil || target.Scheme == "" || target.Host == "" {
+		return nil, fmt.Errorf("invalid upstream base URL: %s", baseURL)
+	}
+
+	rp := httputil.NewSingleHostReverseProxy(target)
+	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("[gateway-proxy] upstream unreachable for %s %s -> %s: %v", r.Method, r.URL.Path, target.String(), err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"code":502,"message":"Upstream service unavailable"}`))
+	}
+	return rp, nil
 }
 
 // RouteManager holds the in-memory cache of active Service+Route config used by the
@@ -53,6 +81,13 @@ type RouteManager struct {
 
 	globalRateLimit RateLimitConfig
 
+	// instanceID identifies this process for the manual cache status endpoint (FSD §4.5) —
+	// useful for confirming which instance answered when running multiple instances behind a
+	// load balancer, since each instance keeps its own independent in-memory route cache.
+	instanceID string
+	// lastRefreshed is when Refresh() last completed successfully.
+	lastRefreshed time.Time
+
 	stopTicker chan struct{}
 	stopPubSub chan struct{}
 }
@@ -60,10 +95,21 @@ type RouteManager struct {
 // NewRouteManager creates a new RouteManager.
 func NewRouteManager(repo *repositories.GatewayServiceRepository, logger *helpers.Logger) *RouteManager {
 	return &RouteManager{
-		repo:   repo,
-		logger: logger,
-		routes: []*CachedRoute{},
+		repo:       repo,
+		logger:     logger,
+		routes:     []*CachedRoute{},
+		instanceID: newInstanceID(),
 	}
+}
+
+// newInstanceID builds a per-process identifier from hostname + PID — stable for the life of
+// the process, unique enough across instances/hosts for the cache status endpoint.
+func newInstanceID() string {
+	host, err := os.Hostname()
+	if err != nil {
+		host = "unknown"
+	}
+	return fmt.Sprintf("%s:%d", host, os.Getpid())
 }
 
 // SetRedis wires the Redis client + Pub/Sub channel used for multi-instance cache sync
@@ -93,7 +139,18 @@ func (rm *RouteManager) Refresh() error {
 	}
 
 	newRoutes := make([]*CachedRoute, 0)
+	proxyCache := make(map[string]*httputil.ReverseProxy) // keyed by BaseURL, shared across routes of the same Service
 	for _, svc := range services {
+		proxy, ok := proxyCache[svc.BaseURL]
+		if !ok {
+			built, err := newReverseProxy(svc.BaseURL)
+			if err != nil && rm.logger != nil {
+				rm.logger.LogWarn("RouteManager.Refresh", "Skipping proxy for service %s: %v", svc.Name, err)
+			}
+			proxy = built
+			proxyCache[svc.BaseURL] = proxy
+		}
+
 		for _, rt := range svc.Routes {
 			// Resolution chain (FSD §2.15): Route override → Service default → global.
 			// Route/Service values are "per minute" by definition, so window is fixed at 60s;
@@ -117,6 +174,7 @@ func (rm *RouteManager) Refresh() error {
 				segments:            parsePattern(rt.PathPattern),
 				PermissionMatchMode: rt.PermissionMatchMode,
 				RateLimit:           rateLimit,
+				Proxy:               proxy,
 			}
 			for _, p := range rt.Permissions {
 				cr.Permissions = append(cr.Permissions, p.Name)
@@ -129,6 +187,7 @@ func (rm *RouteManager) Refresh() error {
 	// build above has succeeded; readers via Match() never observe a partial state.
 	rm.mu.Lock()
 	rm.routes = newRoutes
+	rm.lastRefreshed = time.Now()
 	rm.mu.Unlock()
 
 	if rm.logger != nil {
@@ -270,8 +329,9 @@ func (rm *RouteManager) Stop() {
 	}
 }
 
-// Stats returns basic counters for the manual cache status endpoint.
-func (rm *RouteManager) Stats() (totalRoutes int, totalServices int) {
+// Stats returns the counters + metadata for the manual cache status endpoint (FSD §4.5:
+// last_refreshed_at, total_services, total_routes, instance_id).
+func (rm *RouteManager) Stats() (totalRoutes int, totalServices int, lastRefreshed time.Time, instanceID string) {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
 
@@ -279,5 +339,5 @@ func (rm *RouteManager) Stats() (totalRoutes int, totalServices int) {
 	for _, r := range rm.routes {
 		seen[r.ServiceID] = struct{}{}
 	}
-	return len(rm.routes), len(seen)
+	return len(rm.routes), len(seen), rm.lastRefreshed, rm.instanceID
 }

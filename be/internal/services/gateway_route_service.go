@@ -20,6 +20,10 @@ func (s *Services) GatewayRouteCreate(ctx context.Context, req dtos.GatewayRoute
 		return nil, &helpers.FieldError{Field: "service", Message: "Service tidak ditemukan"}
 	}
 
+	if err := helpers.ValidateRoutePathPattern(req.PathPattern); err != nil {
+		return nil, err
+	}
+
 	exists, err := s.repo.GatewayRoute.Exists(nil, map[string]interface{}{
 		"service_id":   req.Service,
 		"method":       req.Method,
@@ -162,6 +166,12 @@ func (s *Services) GatewayRouteUpdate(ctx context.Context, id uint, req dtos.Gat
 		return nil, err
 	}
 	beforeDTO := dtos.ToGatewayRouteDTO(existing)
+
+	if req.PathPattern != "" && req.PathPattern != existing.PathPattern {
+		if err := helpers.ValidateRoutePathPattern(req.PathPattern); err != nil {
+			return nil, err
+		}
+	}
 
 	matchMode := req.PermissionMatchMode
 	if matchMode == "" {

@@ -15,6 +15,20 @@ type pathSegment struct {
 	value string
 }
 
+// hasDotDotSegment reports whether path contains a literal ".." path segment. Unlike
+// net/http.ServeMux, gin does not clean ".." out of c.Request.URL.Path, and proxyRequest
+// forwards that path to the upstream verbatim (not the matched pattern) — so without this
+// check, a request like "/files/../../internal/secret" could match a wildcard route (e.g.
+// "/files/*") and still reach the upstream with a path the admin never intended to expose.
+func hasDotDotSegment(path string) bool {
+	for _, part := range strings.Split(path, "/") {
+		if part == ".." {
+			return true
+		}
+	}
+	return false
+}
+
 // parsePattern splits a route path_pattern (e.g. "/user/:id", "/user/*") into segments.
 func parsePattern(pattern string) []pathSegment {
 	raw := strings.Split(strings.Trim(pattern, "/"), "/")

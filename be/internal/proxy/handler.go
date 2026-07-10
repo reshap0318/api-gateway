@@ -3,17 +3,14 @@ package proxy
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/reshap0318/api-gateway/internal/helpers"
+	"github.com/reshap0318/api-gateway/internal/middleware"
 	"github.com/reshap0318/api-gateway/internal/services"
 )
 
@@ -25,7 +22,13 @@ import (
 // so no separate WebSocket handling is required.
 func Handler(rm *RouteManager, svcs *services.Services, acc *helpers.Access, limiter *helpers.RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !authenticate(c, svcs) {
+		claims, ok := authenticate(c, svcs)
+		if !ok {
+			return
+		}
+
+		if hasDotDotSegment(c.Request.URL.Path) {
+			helpers.BadRequest(c, "Invalid path")
 			return
 		}
 
@@ -53,6 +56,7 @@ func Handler(rm *RouteManager, svcs *services.Services, acc *helpers.Access, lim
 			return
 		}
 
+		injectCallerHeaders(c, claims)
 		proxyRequest(c, route, params)
 	}
 }
@@ -62,7 +66,10 @@ func Handler(rm *RouteManager, svcs *services.Services, acc *helpers.Access, lim
 // a per-(route,client) token bucket, so overriding the limit for one Route never affects
 // another Route's or client's budget.
 func enforceRateLimit(c *gin.Context, route *CachedRoute, limiter *helpers.RateLimiter) bool {
-	ip := helpers.GetClientIP(c.Request, c.ClientIP())
+	// c.ClientIP() only trusts X-Forwarded-For/X-Real-IP when the immediate peer is a
+	// configured trusted proxy (main.go), preventing clients from spoofing a fresh IP per
+	// request to get an unlimited supply of new token buckets.
+	ip := c.ClientIP()
 	key := fmt.Sprintf("gwrl:route:%d:%s", route.ID, ip)
 
 	info := limiter.AllowWithLimit(key, route.RateLimit.Limit, route.RateLimit.WindowSecs)
@@ -84,52 +91,47 @@ func enforceRateLimit(c *gin.Context, route *CachedRoute, limiter *helpers.RateL
 	return true
 }
 
-// authenticate validates the Bearer JWT and, on success, attaches the caller ID to the
-// request context (mirrors middleware.JWTAuth — NoRoute bypasses group-scoped middleware,
-// so this must be done inline here).
-func authenticate(c *gin.Context, svcs *services.Services) bool {
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		helpers.Unauthorized(c, "Authorization header required")
-		return false
-	}
-
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		helpers.Unauthorized(c, "Invalid authorization header format")
-		return false
-	}
-
-	claims, err := svcs.AuthValidateToken(parts[1])
+// authenticate validates the Bearer JWT (via the same middleware.ExtractBearerClaims used by
+// middleware.JWTAuth for the Management API — NoRoute bypasses group-scoped middleware, so this
+// must be invoked inline here) and, on success, attaches the caller ID to the request context
+// and returns the decoded claims for the caller to use (e.g. injectCallerHeaders).
+func authenticate(c *gin.Context, svcs *services.Services) (*helpers.JWTClaims, bool) {
+	claims, err := middleware.ExtractBearerClaims(c, svcs)
 	if err != nil {
-		helpers.Unauthorized(c, "Invalid or expired token")
-		return false
+		helpers.Unauthorized(c, err.Error())
+		return nil, false
 	}
 
 	ctx := context.WithValue(c.Request.Context(), helpers.KeyUserID, claims.UserID)
 	c.Request = c.Request.WithContext(ctx)
-	return true
+
+	c.Set("user_id", claims.UserID)
+	c.Set("user_email", claims.Email)
+
+	return claims, true
+}
+
+// injectCallerHeaders sets X-User-Id/X-User-Email on the request being forwarded upstream, so
+// the upstream service can identify the caller without having to decode the JWT itself.
+// Header.Set (not Add) is used deliberately: it replaces any X-User-Id/X-User-Email the client
+// may have sent themselves, so a caller can't spoof another user's identity to the upstream.
+func injectCallerHeaders(c *gin.Context, claims *helpers.JWTClaims) {
+	c.Request.Header.Set("X-User-Id", strconv.FormatUint(uint64(claims.UserID), 10))
+	c.Request.Header.Set("X-User-Email", claims.Email)
 }
 
 // proxyRequest forwards the request as-is to {service.base_url}{original path} and streams
 // the upstream response back to the client. params (extracted :param values) are resolved
 // but not rewritten into the forwarded path — the full original path is proxied verbatim.
+// route.Proxy is built once per BaseURL at RouteManager.Refresh()-time and shared across
+// requests/routes, rather than allocating a new httputil.ReverseProxy per request.
 func proxyRequest(c *gin.Context, route *CachedRoute, params map[string]string) {
 	_ = params
 
-	target, err := url.Parse(route.BaseURL)
-	if err != nil || target.Scheme == "" || target.Host == "" {
+	if route.Proxy == nil {
 		helpers.InternalServerError(c, "Invalid upstream base URL")
 		return
 	}
 
-	rp := httputil.NewSingleHostReverseProxy(target)
-	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		log.Printf("[gateway-proxy] upstream unreachable for %s %s -> %s: %v", r.Method, r.URL.Path, target.String(), err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadGateway)
-		_, _ = w.Write([]byte(`{"code":502,"message":"Upstream service unavailable"}`))
-	}
-
-	rp.ServeHTTP(c.Writer, c.Request)
+	route.Proxy.ServeHTTP(c.Writer, c.Request)
 }

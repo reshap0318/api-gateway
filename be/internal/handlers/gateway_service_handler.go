@@ -33,7 +33,7 @@ func (h *Handlers) GatewayServiceCreate(c *gin.Context) {
 // GatewayServiceGetAll handles GET /api/services
 func (h *Handlers) GatewayServiceGetAll(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "0"))
 
 	opts := &repositories.QueryOptions{
 		Page:     page,

@@ -30,10 +30,12 @@ func (h *Handlers) GatewayCacheStatus(c *gin.Context) {
 		return
 	}
 
-	totalRoutes, totalServices := h.RouteManager.Stats()
+	totalRoutes, totalServices, lastRefreshed, instanceID := h.RouteManager.Stats()
 
 	helpers.OK(c, "Cache status fetched", gin.H{
-		"total_routes":   totalRoutes,
-		"total_services": totalServices,
+		"last_refreshed_at": lastRefreshed,
+		"total_services":    totalServices,
+		"total_routes":      totalRoutes,
+		"instance_id":       instanceID,
 	})
 }

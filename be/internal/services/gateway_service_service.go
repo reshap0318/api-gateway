@@ -25,6 +25,10 @@ func (s *Services) GatewayServiceCreate(ctx context.Context, req dtos.GatewaySer
 		return nil, &helpers.FieldError{Field: "name", Message: "Nama service sudah digunakan"}
 	}
 
+	if err := helpers.ValidateUpstreamBaseURL(req.BaseURL); err != nil {
+		return nil, err
+	}
+
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
@@ -148,6 +152,12 @@ func (s *Services) GatewayServiceUpdate(ctx context.Context, id uint, req dtos.G
 		}
 		if exists {
 			return nil, &helpers.FieldError{Field: "name", Message: "Nama service sudah digunakan"}
+		}
+	}
+
+	if req.BaseURL != "" && req.BaseURL != existing.BaseURL {
+		if err := helpers.ValidateUpstreamBaseURL(req.BaseURL); err != nil {
+			return nil, err
 		}
 	}
 
