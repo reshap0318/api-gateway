@@ -190,6 +190,9 @@ func (s *Services) RoleUpdate(ctx context.Context, id uint, req dtos.RoleRequest
 
 	result = res.(*models.Role)
 
+	// Permissions on this Role changed — every user holding it has a stale cached set.
+	s.Access.InvalidateAll()
+
 	dto := dtos.ToRoleDTO(result)
 
 	_ = s.NotificationCreate(ctx, &NotificationCreateParams{
@@ -221,6 +224,9 @@ func (s *Services) RoleDelete(ctx context.Context, id uint) error {
 		s.Logger.LogEndWithError("RoleDelete", "Failed to delete role: %v", err)
 		return err
 	}
+
+	// Role is gone — every user holding it has a stale cached set.
+	s.Access.InvalidateAll()
 
 	_ = s.NotificationCreate(ctx, &NotificationCreateParams{
 		Type:    "warning",

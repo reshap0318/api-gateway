@@ -7,6 +7,7 @@ import type { IPermission } from './permission'
 export interface IGatewayRouteServiceMini {
   id: number
   name: string
+  base_path: string
   is_active: boolean
 }
 

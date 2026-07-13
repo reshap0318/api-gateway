@@ -21,10 +21,23 @@ function isValidBaseUrl(value: string): boolean {
   }
 }
 
+// Mirrors backend helpers.ValidateBasePath: must start with "/", must not end with "/",
+// no empty segments ("//"), and no "*"/":" segments (base_path is a fixed literal prefix,
+// not a route pattern).
+function isValidBasePath(value: string): boolean {
+  if (!value) return true
+  if (value === '/' || !value.startsWith('/') || value.endsWith('/')) return false
+  return value
+    .slice(1)
+    .split('/')
+    .every((segment) => segment !== '' && !segment.includes('*') && !segment.startsWith(':'))
+}
+
 export interface IGatewayService {
   id: number
   name: string
   base_url: string
+  base_path: string
   protocol: 'http' | 'websocket'
   is_active: boolean
   rate_limit_per_minute: number | null
@@ -39,6 +52,7 @@ export interface IGatewayServicePayload {
   id?: number
   name: string
   base_url: string
+  base_path: string
   protocol: 'http' | 'websocket'
   rate_limit_per_minute: number | null
   is_active: boolean
@@ -51,6 +65,7 @@ export const useGatewayServiceStore = defineStore('gatewayService', () => {
     initialForm: {
       name: '',
       base_url: '',
+      base_path: '',
       protocol: 'http',
       rate_limit_per_minute: null,
       is_active: true,
@@ -60,6 +75,13 @@ export const useGatewayServiceStore = defineStore('gatewayService', () => {
       base_url: {
         required,
         validUrl: helpers.withMessage('Base URL tidak valid', isValidBaseUrl),
+      },
+      base_path: {
+        required,
+        validBasePath: helpers.withMessage(
+          'Base path harus diawali /, tidak boleh diakhiri /, dan tidak boleh mengandung * atau :',
+          isValidBasePath,
+        ),
       },
       protocol: { required },
       rate_limit_per_minute: {

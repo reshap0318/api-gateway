@@ -14,10 +14,10 @@ import (
 	en_trans "github.com/go-playground/validator/v10/translations/en"
 	"gorm.io/gorm"
 
-	clientEmail "github.com/reshap0318/api-gateway/internal/pkg/email"
 	"github.com/reshap0318/api-gateway/internal/database"
 	"github.com/reshap0318/api-gateway/internal/handlers"
 	"github.com/reshap0318/api-gateway/internal/helpers"
+	clientEmail "github.com/reshap0318/api-gateway/internal/pkg/email"
 	"github.com/reshap0318/api-gateway/internal/proxy"
 	"github.com/reshap0318/api-gateway/internal/repositories"
 	"github.com/reshap0318/api-gateway/internal/services"

@@ -148,7 +148,8 @@ onMounted(async () => {
 
       <template #path_pattern="{ item }">
         <code class="text-xs bg-gray-100 px-2 py-1 rounded">
-          {{ (item as unknown as IGatewayRoute).path_pattern }}
+          {{ (item as unknown as IGatewayRoute).service?.base_path
+          }}{{ (item as unknown as IGatewayRoute).path_pattern }}
         </code>
       </template>
 

@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS gateway_services (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     base_url VARCHAR(500) NOT NULL,
+    base_path VARCHAR(200) NOT NULL UNIQUE,
     protocol VARCHAR(20) NOT NULL DEFAULT 'http',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     rate_limit_per_minute INT UNSIGNED NULL,
@@ -53,10 +54,21 @@ CREATE TABLE IF NOT EXISTS gateway_audit_logs (
     INDEX idx_gateway_audit_logs_actor (actor_user_id),
     FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Singleton row (id=1) tracking Service/Route CUD count — lets RouteManager's periodic
+-- refresh skip rebuilding when nothing changed. A monotonic counter (not a timestamp) so
+-- comparisons never depend on clock sync across app instances.
+CREATE TABLE IF NOT EXISTS gateway_cache_meta (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    version BIGINT UNSIGNED NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO gateway_cache_meta (id, version) VALUES (1, 1);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
+DROP TABLE IF EXISTS gateway_cache_meta;
 DROP TABLE IF EXISTS gateway_audit_logs;
 DROP TABLE IF EXISTS gateway_route_permissions;
 DROP TABLE IF EXISTS gateway_routes;

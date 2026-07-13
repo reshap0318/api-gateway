@@ -37,6 +37,14 @@ const serviceOptions = computed(() =>
   allServices.value.map((s) => ({ value: s.id, label: s.name })),
 )
 
+// Preview of the real publicly-reachable URL (base_path + path_pattern), so the admin can
+// see the effect of the selected Service's prefix before saving.
+const fullPathPreview = computed(() => {
+  const service = allServices.value.find((s) => s.id === routeStore.form.service)
+  if (!service || !routeStore.form.path_pattern) return null
+  return `${service.base_path}${routeStore.form.path_pattern}`
+})
+
 const permissionOptions = computed(() =>
   allPermissions.value.map((p) => ({ value: p.id, label: p.name })),
 )
@@ -146,6 +154,9 @@ defineExpose({ show, close })
               placeholder="/user/:id atau /files/*"
               :validation="v$.path_pattern"
             />
+            <p v-if="fullPathPreview" class="mt-1 text-xs text-gray-500">
+              URL publik: <code>{{ fullPathPreview }}</code>
+            </p>
           </div>
         </div>
 

@@ -29,6 +29,19 @@ func (s *Services) GatewayServiceCreate(ctx context.Context, req dtos.GatewaySer
 		return nil, err
 	}
 
+	if err := helpers.ValidateBasePath(req.BasePath); err != nil {
+		return nil, err
+	}
+
+	basePathExists, err := s.repo.GatewayService.Exists(nil, map[string]interface{}{"base_path": req.BasePath})
+	if err != nil {
+		s.Logger.LogEndWithError("GatewayServiceCreate", "Failed to check base_path uniqueness: %v", err)
+		return nil, err
+	}
+	if basePathExists {
+		return nil, &helpers.FieldError{Field: "base_path", Message: "Base path sudah digunakan service lain"}
+	}
+
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
@@ -37,6 +50,7 @@ func (s *Services) GatewayServiceCreate(ctx context.Context, req dtos.GatewaySer
 	service := &models.GatewayService{
 		Name:               req.Name,
 		BaseURL:            req.BaseURL,
+		BasePath:           req.BasePath,
 		Protocol:           req.Protocol,
 		IsActive:           isActive,
 		RateLimitPerMinute: req.RateLimitPerMinute,
@@ -161,6 +175,20 @@ func (s *Services) GatewayServiceUpdate(ctx context.Context, id uint, req dtos.G
 		}
 	}
 
+	if req.BasePath != "" && req.BasePath != existing.BasePath {
+		if err := helpers.ValidateBasePath(req.BasePath); err != nil {
+			return nil, err
+		}
+
+		basePathExists, err := s.repo.GatewayService.Exists(nil, map[string]interface{}{"base_path": req.BasePath})
+		if err != nil {
+			return nil, err
+		}
+		if basePathExists {
+			return nil, &helpers.FieldError{Field: "base_path", Message: "Base path sudah digunakan service lain"}
+		}
+	}
+
 	isActive := existing.IsActive
 	if req.IsActive != nil {
 		isActive = *req.IsActive
@@ -172,6 +200,7 @@ func (s *Services) GatewayServiceUpdate(ctx context.Context, id uint, req dtos.G
 	update := map[string]interface{}{
 		"name":                  req.Name,
 		"base_url":              req.BaseURL,
+		"base_path":             req.BasePath,
 		"protocol":              req.Protocol,
 		"rate_limit_per_minute": req.RateLimitPerMinute,
 		"is_active":             isActive,

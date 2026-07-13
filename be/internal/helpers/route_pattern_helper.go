@@ -24,3 +24,28 @@ func ValidateRoutePathPattern(pattern string) error {
 
 	return nil
 }
+
+// ValidateBasePath enforces base_path is a fixed literal prefix: starts with "/", no
+// trailing "/", no empty segments, no "*"/":" (that belongs on path_pattern instead).
+func ValidateBasePath(basePath string) error {
+	if basePath == "" || basePath == "/" {
+		return &FieldError{Field: "base_path", Message: "Base path wajib diisi dan tidak boleh berupa \"/\""}
+	}
+	if !strings.HasPrefix(basePath, "/") {
+		return &FieldError{Field: "base_path", Message: "Base path harus diawali dengan /"}
+	}
+	if strings.HasSuffix(basePath, "/") {
+		return &FieldError{Field: "base_path", Message: "Base path tidak boleh diakhiri dengan /"}
+	}
+
+	for _, part := range strings.Split(strings.TrimPrefix(basePath, "/"), "/") {
+		if part == "" {
+			return &FieldError{Field: "base_path", Message: "Base path tidak boleh mengandung segmen kosong (//)"}
+		}
+		if strings.Contains(part, "*") || strings.HasPrefix(part, ":") {
+			return &FieldError{Field: "base_path", Message: "Base path tidak boleh mengandung wildcard (*) atau parameter (:)"}
+		}
+	}
+
+	return nil
+}

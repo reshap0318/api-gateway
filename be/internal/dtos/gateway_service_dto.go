@@ -10,6 +10,7 @@ import (
 type GatewayServiceRequest struct {
 	Name               string `json:"name" validate:"required,min=3,max=100"`
 	BaseURL            string `json:"base_url" validate:"required,url"`
+	BasePath           string `json:"base_path" validate:"required,min=1,max=200"`
 	Protocol           string `json:"protocol" validate:"required,oneof=http websocket"`
 	RateLimitPerMinute *int   `json:"rate_limit_per_minute" validate:"omitempty,min=1"`
 	IsActive           *bool  `json:"is_active"`
@@ -20,6 +21,7 @@ type GatewayServiceDTO struct {
 	ID                 uint       `json:"id"`
 	Name               string     `json:"name"`
 	BaseURL            string     `json:"base_url"`
+	BasePath           string     `json:"base_path"`
 	Protocol           string     `json:"protocol"`
 	IsActive           bool       `json:"is_active"`
 	RateLimitPerMinute *int       `json:"rate_limit_per_minute"`
@@ -36,6 +38,7 @@ func ToGatewayServiceDTO(s *models.GatewayService) GatewayServiceDTO {
 		ID:                 s.ID,
 		Name:               s.Name,
 		BaseURL:            s.BaseURL,
+		BasePath:           s.BasePath,
 		Protocol:           s.Protocol,
 		IsActive:           s.IsActive,
 		RateLimitPerMinute: s.RateLimitPerMinute,
@@ -66,6 +69,7 @@ type GatewayServiceHealthDTO struct {
 type GatewayServiceMiniDTO struct {
 	ID       uint   `json:"id"`
 	Name     string `json:"name"`
+	BasePath string `json:"base_path"`
 	IsActive bool   `json:"is_active"`
 }
 
@@ -74,6 +78,7 @@ func ToGatewayServiceMiniDTO(s *models.GatewayService) GatewayServiceMiniDTO {
 	return GatewayServiceMiniDTO{
 		ID:       s.ID,
 		Name:     s.Name,
+		BasePath: s.BasePath,
 		IsActive: s.IsActive,
 	}
 }

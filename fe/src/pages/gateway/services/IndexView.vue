@@ -282,6 +282,12 @@ onMounted(() => {
                 </p>
               </div>
               <div class="min-w-0">
+                <p class="text-gray-400">Base Path</p>
+                <p class="font-medium text-gray-700 truncate">
+                  <code class="truncate">{{ service.base_path }}</code>
+                </p>
+              </div>
+              <div class="min-w-0 col-span-2">
                 <p class="text-gray-400">Terakhir Dicek</p>
                 <p class="font-medium text-gray-700 truncate flex items-center gap-1">
                   <PhClockCounterClockwise class="w-3 h-3 shrink-0" />

@@ -31,6 +31,7 @@ function show(data?: IGatewayService) {
     serviceStore.form.id = data.id
     serviceStore.form.name = data.name
     serviceStore.form.base_url = data.base_url
+    serviceStore.form.base_path = data.base_path
     serviceStore.form.protocol = data.protocol
     serviceStore.form.rate_limit_per_minute = data.rate_limit_per_minute
     serviceStore.form.is_active = data.is_active
@@ -88,6 +89,14 @@ defineExpose({ show, close })
           label="Base URL"
           placeholder="http://localhost:9000"
           :validation="v$.base_url"
+        />
+
+        <FormInput
+          v-model="serviceStore.form.base_path"
+          name="base_path"
+          label="Base Path"
+          placeholder="/order"
+          :validation="v$.base_path"
         />
 
         <FormSelect

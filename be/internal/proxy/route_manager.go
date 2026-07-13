@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,10 +25,13 @@ type RateLimitConfig struct {
 
 // CachedRoute is the in-memory representation of a GatewayRoute ready for request matching.
 type CachedRoute struct {
-	ID                  uint
-	ServiceID           uint
-	ServiceName         string
-	BaseURL             string
+	ID          uint
+	ServiceID   uint
+	ServiceName string
+	BaseURL     string
+	// FullPath = BasePath+PathPattern; the actual path matched (see Refresh()).
+	BasePath            string
+	FullPath            string
 	Protocol            string
 	Method              string
 	PathPattern         string
@@ -72,6 +76,9 @@ func newReverseProxy(baseURL string) (*httputil.ReverseProxy, error) {
 type RouteManager struct {
 	mu     sync.RWMutex
 	routes []*CachedRoute
+	// byBasePath indexes routes by their owning Service's base_path, so Match() only scans
+	// the routes of the matched Service instead of every route in the gateway.
+	byBasePath map[string][]*CachedRoute
 
 	repo   *repositories.GatewayServiceRepository
 	logger *helpers.Logger
@@ -87,6 +94,10 @@ type RouteManager struct {
 	instanceID string
 	// lastRefreshed is when Refresh() last completed successfully.
 	lastRefreshed time.Time
+	// lastVersion is the gateway_cache_meta version as of the last Refresh() — read before
+	// the DB query for services/routes, so it's always <= the true data version (never
+	// ahead of it), guaranteeing RefreshIfStale can't miss a mutation that raced with a Refresh.
+	lastVersion uint64
 
 	stopTicker chan struct{}
 	stopPubSub chan struct{}
@@ -130,6 +141,14 @@ func (rm *RouteManager) SetGlobalRateLimit(cfg RateLimitConfig) {
 // Refresh rebuilds the route cache from the DB and atomically swaps it in.
 // On query failure, the existing cache is kept untouched (fail-safe, not fail-empty).
 func (rm *RouteManager) Refresh() error {
+	// Read the version before querying services/routes: if a CUD races with this Refresh,
+	// the version read here stays <= the true data version, so RefreshIfStale can never
+	// wrongly think a racing mutation is already reflected in this build.
+	version, verr := rm.repo.GetCacheVersion(nil)
+	if verr != nil && rm.logger != nil {
+		rm.logger.LogWarn("RouteManager.Refresh", "Failed to read cache version: %v", verr)
+	}
+
 	services, err := rm.repo.FindAllActiveWithRoutes(nil)
 	if err != nil {
 		if rm.logger != nil {
@@ -163,15 +182,20 @@ func (rm *RouteManager) Refresh() error {
 				rateLimit = RateLimitConfig{Limit: *rt.RateLimitPerMinute, WindowSecs: 60}
 			}
 
+			// path_pattern is relative to the Service's base_path (FSD §2.13).
+			fullPath := svc.BasePath + rt.PathPattern
+
 			cr := &CachedRoute{
 				ID:                  rt.ID,
 				ServiceID:           svc.ID,
 				ServiceName:         svc.Name,
 				BaseURL:             svc.BaseURL,
+				BasePath:            svc.BasePath,
+				FullPath:            fullPath,
 				Protocol:            svc.Protocol,
 				Method:              rt.Method,
 				PathPattern:         rt.PathPattern,
-				segments:            parsePattern(rt.PathPattern),
+				segments:            parsePattern(fullPath),
 				PermissionMatchMode: rt.PermissionMatchMode,
 				RateLimit:           rateLimit,
 				Proxy:               proxy,
@@ -183,11 +207,20 @@ func (rm *RouteManager) Refresh() error {
 		}
 	}
 
-	// Atomic swap — the slice header is replaced under lock only after the full
-	// build above has succeeded; readers via Match() never observe a partial state.
+	byBasePath := make(map[string][]*CachedRoute)
+	for _, cr := range newRoutes {
+		byBasePath[cr.BasePath] = append(byBasePath[cr.BasePath], cr)
+	}
+
+	// Atomic swap — replaced under lock only after the full build above has succeeded;
+	// readers via Match() never observe a partial state.
 	rm.mu.Lock()
 	rm.routes = newRoutes
+	rm.byBasePath = byBasePath
 	rm.lastRefreshed = time.Now()
+	if verr == nil {
+		rm.lastVersion = version
+	}
 	rm.mu.Unlock()
 
 	if rm.logger != nil {
@@ -262,11 +295,27 @@ func (rm *RouteManager) MustRefreshSync() error {
 	return nil
 }
 
-// Match finds the best (most specific) route for the given method + path.
+// Match finds the best (most specific) route for the given method + path. Only scans the
+// routes of the Service whose base_path is the longest matching prefix of path, instead of
+// every route in the gateway.
 func (rm *RouteManager) Match(method, path string) (*CachedRoute, map[string]string, bool) {
 	rm.mu.RLock()
-	routes := rm.routes
+	byBasePath := rm.byBasePath
 	rm.mu.RUnlock()
+
+	var routes []*CachedRoute
+	bestBasePathLen := -1
+	for basePath, group := range byBasePath {
+		if path == basePath || strings.HasPrefix(path, basePath+"/") {
+			if len(basePath) > bestBasePathLen {
+				bestBasePathLen = len(basePath)
+				routes = group
+			}
+		}
+	}
+	if routes == nil {
+		return nil, nil, false
+	}
 
 	var best *CachedRoute
 	var bestParams map[string]string
@@ -300,6 +349,32 @@ func (rm *RouteManager) Match(method, path string) (*CachedRoute, map[string]str
 	return best, bestParams, true
 }
 
+// RefreshIfStale checks gateway_cache_meta's version and only runs the full Refresh()
+// rebuild if it moved since the last refresh. Used by the periodic ticker; on-save/Pub-Sub
+// triggers already know a change happened and call Refresh() directly.
+func (rm *RouteManager) RefreshIfStale() error {
+	version, err := rm.repo.GetCacheVersion(nil)
+	if err != nil {
+		if rm.logger != nil {
+			rm.logger.LogWarn("RouteManager.RefreshIfStale", "Version check failed, refreshing anyway: %v", err)
+		}
+		return rm.Refresh()
+	}
+
+	rm.mu.RLock()
+	lastVersion := rm.lastVersion
+	rm.mu.RUnlock()
+
+	if version == lastVersion {
+		return nil
+	}
+
+	if rm.logger != nil {
+		rm.logger.LogInfo("RouteManager.RefreshIfStale", "Version changed (%d -> %d), refreshing", lastVersion, version)
+	}
+	return rm.Refresh()
+}
+
 // StartPeriodicRefresh starts a background ticker that refreshes the cache on an interval,
 // as a fallback safety net independent of on-save/Pub-Sub triggers.
 func (rm *RouteManager) StartPeriodicRefresh(interval time.Duration) {
@@ -311,7 +386,7 @@ func (rm *RouteManager) StartPeriodicRefresh(interval time.Duration) {
 		for {
 			select {
 			case <-ticker.C:
-				_ = rm.Refresh()
+				_ = rm.RefreshIfStale()
 			case <-rm.stopTicker:
 				return
 			}

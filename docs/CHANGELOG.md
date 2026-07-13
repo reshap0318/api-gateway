@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v1.5.0 - 2026-07-13
+
+- **Tambah `base_path` wajib & unik pada `GatewayService` (perbaikan celah tabrakan Route lintas Service):** sebelumnya keunikan `(method, path_pattern)` hanya dicek dalam satu Service, sehingga dua Service berbeda bisa mendaftarkan `method+path_pattern` yang identik — `RouteManager.Match()` lalu memutuskan pemenang berdasarkan urutan iterasi (bukan aturan eksplisit), menyebabkan request bisa diam-diam ter-proxy ke Service yang salah tanpa error. Ini adalah **breaking change** semantik: `path_pattern` sekarang relatif terhadap `base_path` Service-nya, path publik yang di-match = `base_path + path_pattern`.
+  - **Migration & Model:** kolom `base_path` (`VARCHAR(200) NOT NULL UNIQUE`) ditambahkan langsung ke `CREATE TABLE gateway_services` di `20260709000001_gateway_tables.sql` (masih tahap development, belum ada migration terpisah/backfill).
+  - **Validasi:** `helpers.ValidateBasePath` baru — wajib diawali `/`, tidak boleh diakhiri `/`, tidak boleh `/` polos, tidak boleh mengandung wildcard (`*`) atau parameter (`:`). Uniqueness dicek dengan pola yang sama seperti `name` (`GatewayServiceCreate`/`Update`).
+  - **Proxy Matching:** `RouteManager.Refresh()` membangun `segments` matcher dari `service.base_path + route.path_pattern` (`CachedRoute.FullPath`), bukan `path_pattern` saja lagi. Karena `base_path` unik per Service dan `(method, path_pattern)` unik dalam satu Service, full path hasil gabungan otomatis unik secara global — tidak perlu pengecekan uniqueness lintas-service tambahan.
+  - **Seeder:** "Toko Service" contoh diberi `base_path: "/toko"`, seluruh `path_pattern` route contoh disesuaikan jadi relatif (`/`, `/:id`, dst) — URL publik hasil akhir tidak berubah (`/toko`, `/toko/:id`, dll).
+  - **Frontend:** form Tambah/Edit Service dapat field Base Path (validasi client-side mencerminkan aturan backend); list Service menampilkan `base_path`; list Route menampilkan full path (`base_path + path_pattern`); form Route menampilkan preview URL publik saat Service & Path Pattern dipilih.
+- **Diuji end-to-end:** dua Service dengan `base_path` berbeda (`/svc-a`, `/svc-b`) masing-masing didaftarkan Route `GET /status` — setelah cache refresh, `GET /svc-a/status` dan `GET /svc-b/status` masing-masing ter-proxy ke upstream yang benar secara independen (skenario tabrakan yang sebelumnya ambigu kini deterministik); `POST /api/services` dengan `base_path` duplikat/format salah ditolak dengan `FieldError` yang sesuai, bukan `500`.
+
 ## v1.4.0 - 2026-07-09
 
 - **Implementasi Phase 3B selesai (T-033 s/d T-036):** `05_ITL.md` diperbarui — seluruh task ditandai `[x]`. Semua fitur ini adalah delta pada modul User existing, reuse permission `user.edit` (tidak ada permission baru).

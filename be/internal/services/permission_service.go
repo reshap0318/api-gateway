@@ -128,6 +128,11 @@ func (s *Services) PermissionUpdate(ctx context.Context, id uint, req dtos.Permi
 		return nil, err
 	}
 
+	// Access cache keys permissions by Name — a rename invalidates every user's cached set.
+	if req.Name != "" {
+		s.Access.InvalidateAll()
+	}
+
 	dto := dtos.ToPermissionDTO(result)
 
 	_ = s.NotificationCreate(ctx, &NotificationCreateParams{
@@ -165,6 +170,9 @@ func (s *Services) PermissionDelete(ctx context.Context, id uint) error {
 		s.Logger.LogEndWithError("PermissionDelete", "Failed to delete permission: %v", err)
 		return err
 	}
+
+	// Permission is gone — every user who had it cached still "has" it until cleared.
+	s.Access.InvalidateAll()
 
 	_ = s.NotificationCreate(ctx, &NotificationCreateParams{
 		Type:    "warning",

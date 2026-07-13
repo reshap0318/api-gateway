@@ -42,13 +42,13 @@
 
 ### §2.1 Create Service
 
-- **Business Logic:** Admin mendaftarkan upstream baru dengan `name` (unik), `base_url`, `protocol` (`http` atau `websocket`), `rate_limit_per_minute` (opsional, null = pakai default global dari `.env`), `is_active` (default `true`).
-- **Pre-conditions:** User memiliki permission `service.create`. `name` belum dipakai service lain (termasuk yang soft-deleted dicek unik pada active record).
+- **Business Logic:** Admin mendaftarkan upstream baru dengan `name` (unik), `base_url`, `base_path` (unik, wajib — prefix path tetap yang membedakan Service ini dari Service lain, misal `/order`; lihat §2.13), `protocol` (`http` atau `websocket`), `rate_limit_per_minute` (opsional, null = pakai default global dari `.env`), `is_active` (default `true`).
+- **Pre-conditions:** User memiliki permission `service.create`. `name` belum dipakai service lain (termasuk yang soft-deleted dicek unik pada active record). `base_path` juga wajib unik secara global (bukan hanya terhadap `name`), diawali `/`, tidak diakhiri `/`, dan tidak mengandung wildcard (`*`) atau parameter (`:`).
 - **Post-conditions:** Record baru tersimpan di `gateway_services`. Audit log entry dibuat (`action=create`). Cache in-memory proxy engine di-refresh (service baru belum berdampak ke traffic sampai ada Route yang mengarah ke sana).
 
 ### §2.2 Edit Service
 
-- **Business Logic:** Admin mengubah `name`, `base_url`, `protocol`, `rate_limit_per_minute`, atau `is_active` dari service yang sudah ada.
+- **Business Logic:** Admin mengubah `name`, `base_url`, `base_path`, `protocol`, `rate_limit_per_minute`, atau `is_active` dari service yang sudah ada. `base_path` tetap harus unik secara global setelah perubahan.
 - **Pre-conditions:** Permission `service.edit`. Service dengan `id` tersebut ada dan belum dihapus (`deleted_at IS NULL`).
 - **Post-conditions:** Record ter-update. Audit log entry (`action=update`, menyimpan before/after value kolom yang berubah). Trigger refresh cache (on-save) + publish Redis Pub/Sub. Jika `is_active` diubah ke `false`, seluruh Route di bawah service ini otomatis dianggap tidak aktif oleh Proxy Engine (tanpa mengubah `is_active` pada tiap Route).
 
@@ -112,7 +112,7 @@
 
 ### §2.13 Request Matching (Dynamic Proxy Engine)
 
-- **Business Logic:** Untuk setiap request masuk ke Gateway yang tidak match ke endpoint Management API manapun, sistem mencari Route yang cocok berdasarkan `method` + `path_pattern` dari cache in-memory. Algoritma specificity: literal segment > parameter dinamis (`:id`) > wildcard (`*`); path dengan jumlah segmen literal lebih banyak menang atas yang lebih sedikit. Hanya Route dari Service yang `is_active = true` DAN Route itu sendiri `is_active = true` yang dipertimbangkan.
+- **Business Logic:** Untuk setiap request masuk ke Gateway yang tidak match ke endpoint Management API manapun, sistem mencari Route yang cocok berdasarkan `method` + (`service.base_path` + `route.path_pattern`, digabung jadi satu full path) dari cache in-memory — `path_pattern` bersifat relatif terhadap `base_path` milik Service-nya. Karena `base_path` wajib unik per Service dan `(method, path_pattern)` wajib unik dalam satu Service, full path hasil gabungan otomatis unik secara global — tidak mungkin dua Service berbeda punya full path yang sama persis. Algoritma specificity: literal segment > parameter dinamis (`:id`) > wildcard (`*`); path dengan jumlah segmen literal lebih banyak menang atas yang lebih sedikit. Hanya Route dari Service yang `is_active = true` DAN Route itu sendiri `is_active = true` yang dipertimbangkan.
 - **Pre-conditions:** Cache in-memory sudah ter-load (minimal 1x saat startup).
 - **Post-conditions:** Jika ditemukan match → lanjut ke §2.14 (permission check). Jika tidak → response `404 Not Found`.
 
@@ -130,7 +130,7 @@
 
 ### §2.16 REST Proxying
 
-- **Business Logic:** Request diteruskan ke `{service.base_url}{path asli}` menggunakan `httputil.ReverseProxy`. Response (status, header, body) diteruskan balik ke client apa adanya.
+- **Business Logic:** Request diteruskan ke `{service.base_url}{path asli}` menggunakan `httputil.ReverseProxy`. `base_path` hanya dipakai untuk pencocokan Route di sisi Gateway (§2.13) — path asli yang diterima dari client (termasuk prefix `base_path`-nya) diteruskan apa adanya ke upstream, tidak di-strip. Response (status, header, body) diteruskan balik ke client apa adanya.
 - **Pre-conditions:** Request lolos §2.13–§2.15.
 - **Post-conditions:** Response upstream diteruskan ke client. Jika upstream timeout/unreachable → response `502 Bad Gateway`.
 
@@ -391,6 +391,8 @@ flowchart TD
 | `name` kosong/kurang dari 3 karakter | "Nama service minimal 3 karakter" | Tolak submit, highlight field |
 | `name` duplikat | "Nama service sudah digunakan" | Tolak submit (DB unique constraint + pre-check) |
 | `base_url` bukan format URL valid | "Base URL tidak valid" | Tolak submit |
+| `base_path` kosong, `/`, tidak diawali `/`, diakhiri `/`, atau mengandung `*`/`:` | "Base path wajib diisi dan tidak boleh berupa \"/\"" / "Base path harus diawali dengan /" / dst | Tolak submit |
+| `base_path` duplikat | "Base path sudah digunakan service lain" | Tolak submit (DB unique constraint + pre-check) |
 | `rate_limit_per_minute` ≤ 0 | "Rate limit harus lebih dari 0" | Tolak submit |
 
 ### §6.2 Create/Edit Route Validation

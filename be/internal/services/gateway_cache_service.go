@@ -10,10 +10,16 @@ type RouteCacheRefresher interface {
 // RefreshRouteCache triggers an on-save local cache refresh (FSD §2.18). Errors are logged
 // only — a stale cache is safer than failing the CUD operation that already committed to DB.
 func (s *Services) RefreshRouteCache(caller string) {
+	if err := s.repo.GatewayService.TouchCacheVersion(nil); err != nil {
+		s.Logger.LogWarn(caller, "Failed to record cache mutation: %v", err)
+	}
+
 	if s.RouteCache == nil {
 		return
 	}
 	if err := s.RouteCache.Refresh(); err != nil {
 		s.Logger.LogWarn(caller, "On-save route cache refresh failed: %v", err)
+		return
 	}
+	s.Logger.LogInfo(caller, "On-save route cache refresh triggered")
 }

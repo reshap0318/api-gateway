@@ -129,6 +129,7 @@ erDiagram
         uint id PK
         string name
         string base_url
+        string base_path
         enum protocol
         bool is_active
         int rate_limit_per_minute
@@ -168,6 +169,7 @@ erDiagram
 
 ### Catatan Skema
 
+- `gateway_services.base_path` **wajib & unik secara global** (`UNIQUE KEY`) — prefix path tetap milik Service ini (mis. `/order`), digabung dengan `gateway_routes.path_pattern` (relatif) saat matching (§2.13). Menjamin full path antar Service tidak pernah bentrok tanpa perlu pengecekan uniqueness lintas-service tambahan.
 - `gateway_services.rate_limit_per_minute` **nullable** — `NULL` berarti pakai default global `.env` (`RATE_LIMIT_REQUESTS`/`RATE_LIMIT_WINDOW`).
 - `gateway_routes.rate_limit_per_minute` **nullable** — `NULL` berarti fallback ke `rate_limit_per_minute` milik Service induk (yang juga bisa `NULL` → fallback ke default global). Resolusi berjenjang: **Route → Service → Global**.
 - `gateway_routes.method` mendukung nilai `*` (semua method).
@@ -191,10 +193,10 @@ Modul Auth, User, Role, Permission, Notification, JWKS, Health, File sudah terdo
 
 | Endpoint | Method | Auth Required | Permission | Request Payload | Success Response |
 |---|---|---|---|---|---|
-| `/api/services` | POST | Yes | `service.create` | `{name, base_url, protocol, rate_limit_per_minute?, is_active?}` | `201 {data: ServiceDTO}` |
+| `/api/services` | POST | Yes | `service.create` | `{name, base_url, base_path, protocol, rate_limit_per_minute?, is_active?}` | `201 {data: ServiceDTO}` |
 | `/api/services` | GET | Yes | `service.index` | Query: `page, limit, search, protocol?, is_active?, health_status?` | `200 {data: ServiceDTO[], meta: pagination}` |
 | `/api/services/:id` | GET | Yes | `service.index` | - | `200 {data: ServiceDTO}` (termasuk ringkasan Route di bawahnya) |
-| `/api/services/:id` | PUT | Yes | `service.edit` | `{name?, base_url?, protocol?, rate_limit_per_minute?, is_active?}` | `200 {data: ServiceDTO}` |
+| `/api/services/:id` | PUT | Yes | `service.edit` | `{name?, base_url?, base_path?, protocol?, rate_limit_per_minute?, is_active?}` | `200 {data: ServiceDTO}` |
 | `/api/services/:id` | DELETE | Yes | `service.delete` | Query opsional: `cascade=true` untuk hapus Route terkait | `200 {message: "Service deleted"}` |
 | `/api/services/:id/health-check` | POST | Yes | `service.health-check` | - | `200 {data: {health_status, health_checked_at}}` |
 
@@ -265,6 +267,7 @@ Modul Auth, User, Role, Permission, Notification, JWKS, Health, File sudah terdo
 - Urutan resolusi saat startup: `Refresh()` sinkron sebelum server mulai menerima traffic (fail-fast kalau DB tidak bisa diakses saat startup) → baru start goroutine periodic ticker + Redis subscriber.
 - **Refresh bersifat atomic swap, bukan clear-then-rebuild in-place:** `Refresh()` query seluruh Service+Route aktif dari DB, membangun slice/map route baru **sepenuhnya di variabel lokal terpisah** (tidak menyentuh cache yang sedang dipakai traffic), baru setelah build selesai sukses, menukar pointer cache aktif ke data baru tsb di bawah `mu.Lock()` (operasi penukaran pointer, bukan mutasi isi struktur lama). Konsekuensinya: **tidak pernah ada window waktu di mana traffic melihat cache kosong atau parsial** — baik saat refresh sukses (langsung tergantikan utuh) maupun saat refresh gagal (`err != nil` → log & keep existing cache lama, cache baru yang gagal dibangun dibuang, tidak pernah di-swap).
 - Pola ini juga berarti route yang sudah aktif tidak pernah "hilang sesaat" akibat proses refresh yang sedang berjalan — client yang sedang request di tengah proses refresh akan selalu melihat salah satu dari dua kondisi valid: cache lama (utuh) atau cache baru (utuh), tidak pernah kondisi transisi/kosong.
+- Setiap entri `CachedRoute` dalam cache menyimpan `PathPattern` (nilai relatif mentah dari DB, untuk logging/audit) terpisah dari `FullPath` (`service.base_path + route.path_pattern`, hasil gabungan yang benar-benar dipakai untuk membangun `segments` dan dicocokkan terhadap request masuk — lihat §2.13). Konkatenasi ini aman tanpa perlu normalisasi tambahan karena `base_path` divalidasi tidak pernah diakhiri `/` dan `path_pattern` divalidasi selalu diawali `/`.
 
 ### Observability
 

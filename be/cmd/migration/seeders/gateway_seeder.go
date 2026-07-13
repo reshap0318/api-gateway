@@ -81,6 +81,7 @@ func SeedGatewayExampleService(db *gorm.DB) uint {
 	s := models.GatewayService{
 		Name:         name,
 		BaseURL:      "http://localhost:9010",
+		BasePath:     "/toko",
 		Protocol:     "http",
 		IsActive:     true,
 		HealthStatus: "unknown",
@@ -113,14 +114,17 @@ func SeedGatewayExampleRoutes(db *gorm.DB, serviceID uint, permIDs map[string]ui
 		Permissions []string
 	}
 
+	// path_pattern is relative to the Service's base_path ("/toko", see
+	// SeedGatewayExampleService) — the publicly-reachable URLs stay the same as before
+	// (e.g. "/toko", "/toko/:id"), the gateway just resolves them as base_path+path_pattern now.
 	routes := []routeSeed{
-		{"GET", "/toko", "any", []string{"toko.index"}},
-		{"GET", "/toko/:id", "any", []string{"toko.index"}},
-		{"POST", "/toko", "any", []string{"toko.create"}},
-		{"PUT", "/toko/:id", "any", []string{"toko.edit"}},
-		{"DELETE", "/toko/:id", "any", []string{"toko.delete"}},
-		{"POST", "/toko/:id/publish", "all", []string{"toko.edit", "toko.publish"}},
-		{"GET", "/toko/public/*", "any", []string{}},
+		{"GET", "/", "any", []string{"toko.index"}},
+		{"GET", "/:id", "any", []string{"toko.index"}},
+		{"POST", "/", "any", []string{"toko.create"}},
+		{"PUT", "/:id", "any", []string{"toko.edit"}},
+		{"DELETE", "/:id", "any", []string{"toko.delete"}},
+		{"POST", "/:id/publish", "all", []string{"toko.edit", "toko.publish"}},
+		{"GET", "/public/*", "any", []string{}},
 	}
 
 	count := 0

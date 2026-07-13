@@ -155,3 +155,12 @@ func (a *Access) Invalidate(userID uint) {
 		a.redis.Delete(key)
 	}
 }
+
+// InvalidateAll clears cached access data for every user. Used when a Role/Permission
+// change affects more users than we'd want to look up individually (e.g. editing a Role's
+// permissions affects every user holding that Role).
+func (a *Access) InvalidateAll() {
+	a.mu.Lock()
+	a.cache = make(map[uint]*userAccessData)
+	a.mu.Unlock()
+}
