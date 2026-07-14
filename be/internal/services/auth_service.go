@@ -273,9 +273,12 @@ func (s *Services) getUserRolesAndPermissions(userID uint) (roles []string, perm
 }
 
 func (s *Services) generateTokenWithClaims(user *models.User) (string, error) {
+	roles, permissions := s.getUserRolesAndPermissions(user.ID)
 	return helpers.GenerateToken(
 		user.ID,
 		user.Email,
+		roles,
+		permissions,
 		s.JWKSManager.GetPrivateKey(),
 		s.JWKSManager.GetKeyID(),
 		helpers.GetEnvInt("JWT_EXPIRATION", 24),
@@ -283,9 +286,12 @@ func (s *Services) generateTokenWithClaims(user *models.User) (string, error) {
 }
 
 func (s *Services) generateRefreshTokenWithClaims(user *models.User) (string, error) {
+	roles, permissions := s.getUserRolesAndPermissions(user.ID)
 	return helpers.GenerateRefreshToken(
 		user.ID,
 		user.Email,
+		roles,
+		permissions,
 		s.JWKSManager.GetPrivateKey(),
 		s.JWKSManager.GetKeyID(),
 		helpers.GetEnvInt("JWT_REFRESH_EXPIRATION", 168),

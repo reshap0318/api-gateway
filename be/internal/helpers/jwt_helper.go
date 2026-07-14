@@ -13,10 +13,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// JWTClaims represents custom claims for JWT tokens
+// JWTClaims represents custom claims for JWT tokens. Roles/Permissions are informational
+// only (a snapshot at issue time) — authorization decisions still go through Access, which
+// queries live data, so a Role/Permission change takes effect immediately without needing
+// the caller to re-login.
 type JWTClaims struct {
-	UserID uint   `json:"user_id"`
-	Email  string `json:"email"`
+	UserID      uint     `json:"user_id"`
+	Email       string   `json:"email"`
+	Roles       []string `json:"roles"`
+	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
@@ -67,11 +72,13 @@ func LoadPublicKey(path string) (*rsa.PublicKey, error) {
 }
 
 // GenerateToken creates a new JWT access token with RS256
-func GenerateToken(userID uint, email string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
+func GenerateToken(userID uint, email string, roles, permissions []string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
 	now := time.Now()
 	claims := &JWTClaims{
-		UserID: userID,
-		Email:  email,
+		UserID:      userID,
+		Email:       email,
+		Roles:       roles,
+		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.New().String(),
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(expirationHours) * time.Hour)),
@@ -93,11 +100,13 @@ func GenerateToken(userID uint, email string, privateKey *rsa.PrivateKey, kid st
 }
 
 // GenerateRefreshToken creates a new JWT refresh token with RS256
-func GenerateRefreshToken(userID uint, email string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
+func GenerateRefreshToken(userID uint, email string, roles, permissions []string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
 	now := time.Now()
 	claims := &JWTClaims{
-		UserID: userID,
-		Email:  email,
+		UserID:      userID,
+		Email:       email,
+		Roles:       roles,
+		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.New().String(),
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(expirationHours) * time.Hour)),

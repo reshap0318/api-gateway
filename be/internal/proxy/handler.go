@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -111,13 +112,18 @@ func authenticate(c *gin.Context, svcs *services.Services) (*helpers.JWTClaims, 
 	return claims, true
 }
 
-// injectCallerHeaders sets X-User-Id/X-User-Email on the request being forwarded upstream, so
-// the upstream service can identify the caller without having to decode the JWT itself.
-// Header.Set (not Add) is used deliberately: it replaces any X-User-Id/X-User-Email the client
-// may have sent themselves, so a caller can't spoof another user's identity to the upstream.
+// injectCallerHeaders sets X-User-Id/X-User-Email/X-User-Roles/X-User-Permissions on the
+// request being forwarded upstream, so the upstream service can identify the caller without
+// having to decode/verify the JWT itself. Roles/Permissions are comma-joined (role/permission
+// names never contain commas, e.g. "toko.publish"), matching the standard HTTP list-header
+// convention (cf. Accept-Encoding). Header.Set (not Add) is used deliberately: it replaces
+// any of these the client may have sent themselves, so a caller can't spoof another user's
+// identity/permissions to the upstream.
 func injectCallerHeaders(c *gin.Context, claims *helpers.JWTClaims) {
 	c.Request.Header.Set("X-User-Id", strconv.FormatUint(uint64(claims.UserID), 10))
 	c.Request.Header.Set("X-User-Email", claims.Email)
+	c.Request.Header.Set("X-User-Roles", strings.Join(claims.Roles, ","))
+	c.Request.Header.Set("X-User-Permissions", strings.Join(claims.Permissions, ","))
 }
 
 // proxyRequest forwards the request as-is to {service.base_url}{original path} and streams
