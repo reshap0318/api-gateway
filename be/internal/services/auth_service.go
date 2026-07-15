@@ -277,6 +277,7 @@ func (s *Services) generateTokenWithClaims(user *models.User) (string, error) {
 	return helpers.GenerateToken(
 		user.ID,
 		user.Email,
+		user.Name,
 		roles,
 		permissions,
 		s.JWKSManager.GetPrivateKey(),
@@ -290,6 +291,7 @@ func (s *Services) generateRefreshTokenWithClaims(user *models.User) (string, er
 	return helpers.GenerateRefreshToken(
 		user.ID,
 		user.Email,
+		user.Name,
 		roles,
 		permissions,
 		s.JWKSManager.GetPrivateKey(),

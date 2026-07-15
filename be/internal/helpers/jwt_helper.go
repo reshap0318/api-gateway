@@ -20,6 +20,7 @@ import (
 type JWTClaims struct {
 	UserID      uint     `json:"user_id"`
 	Email       string   `json:"email"`
+	Name        string   `json:"name"`
 	Roles       []string `json:"roles"`
 	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
@@ -72,11 +73,12 @@ func LoadPublicKey(path string) (*rsa.PublicKey, error) {
 }
 
 // GenerateToken creates a new JWT access token with RS256
-func GenerateToken(userID uint, email string, roles, permissions []string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
+func GenerateToken(userID uint, email, name string, roles, permissions []string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
 	now := time.Now()
 	claims := &JWTClaims{
 		UserID:      userID,
 		Email:       email,
+		Name:        name,
 		Roles:       roles,
 		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -100,11 +102,12 @@ func GenerateToken(userID uint, email string, roles, permissions []string, priva
 }
 
 // GenerateRefreshToken creates a new JWT refresh token with RS256
-func GenerateRefreshToken(userID uint, email string, roles, permissions []string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
+func GenerateRefreshToken(userID uint, email, name string, roles, permissions []string, privateKey *rsa.PrivateKey, kid string, expirationHours int) (string, error) {
 	now := time.Now()
 	claims := &JWTClaims{
 		UserID:      userID,
 		Email:       email,
+		Name:        name,
 		Roles:       roles,
 		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{

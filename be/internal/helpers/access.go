@@ -144,6 +144,34 @@ func (a *Access) HasRole(ctx context.Context, role string) bool {
 	return data.roles[role]
 }
 
+// GetUserAccess returns the caller's current roles and permissions (2-tier cached, same
+// source as HasPermission/HasRole), for callers that need the full live list rather than a
+// single yes/no check (e.g. injectCallerHeaders forwarding X-User-Roles/X-User-Permissions
+// upstream).
+func (a *Access) GetUserAccess(ctx context.Context) (roles, permissions []string, ok bool) {
+	userID := GetCallerID(ctx)
+	if userID == 0 {
+		return nil, nil, false
+	}
+
+	data, ok := a.getUserAccess(userID)
+	if !ok {
+		return nil, nil, false
+	}
+
+	roles = make([]string, 0, len(data.roles))
+	for r := range data.roles {
+		roles = append(roles, r)
+	}
+
+	permissions = make([]string, 0, len(data.permissions))
+	for p := range data.permissions {
+		permissions = append(permissions, p)
+	}
+
+	return roles, permissions, true
+}
+
 // Invalidate clears the cached access data for a user.
 func (a *Access) Invalidate(userID uint) {
 	a.mu.Lock()

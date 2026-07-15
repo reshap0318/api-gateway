@@ -57,7 +57,7 @@ func Handler(rm *RouteManager, svcs *services.Services, acc *helpers.Access, lim
 			return
 		}
 
-		injectCallerHeaders(c, claims)
+		injectCallerHeaders(c, claims, acc)
 		proxyRequest(c, route, params)
 	}
 }
@@ -112,18 +112,31 @@ func authenticate(c *gin.Context, svcs *services.Services) (*helpers.JWTClaims, 
 	return claims, true
 }
 
-// injectCallerHeaders sets X-User-Id/X-User-Email/X-User-Roles/X-User-Permissions on the
-// request being forwarded upstream, so the upstream service can identify the caller without
-// having to decode/verify the JWT itself. Roles/Permissions are comma-joined (role/permission
-// names never contain commas, e.g. "toko.publish"), matching the standard HTTP list-header
-// convention (cf. Accept-Encoding). Header.Set (not Add) is used deliberately: it replaces
-// any of these the client may have sent themselves, so a caller can't spoof another user's
-// identity/permissions to the upstream.
-func injectCallerHeaders(c *gin.Context, claims *helpers.JWTClaims) {
+// injectCallerHeaders sets X-User-Id/X-User-Email/X-User-Name/X-User-Roles/X-User-Permissions/
+// X-Trace-Id on the request being forwarded upstream, so the upstream service can identify the
+// caller without having to decode/verify the JWT itself, and can tag its own logs with the same
+// trace ID middleware.TraceID assigned at request entry — so one request's path through gateway
+// + service is correlatable end-to-end. Roles/Permissions come from acc.GetUserAccess (live,
+// cached DB data) rather than the JWT claims, so a Role/Permission change takes effect on the
+// very next proxied request instead of waiting for the caller to refresh their token; if the
+// live lookup fails (e.g. user deleted after login), the JWT claims are used as a fallback so
+// the request still proxies. Roles/Permissions are comma-joined (role/permission names never
+// contain commas, e.g. "toko.publish"), matching the standard HTTP list-header convention (cf.
+// Accept-Encoding). Header.Set (not Add) is used deliberately: it replaces any of these the
+// client may have sent themselves, so a caller can't spoof another user's identity/permissions
+// to the upstream.
+func injectCallerHeaders(c *gin.Context, claims *helpers.JWTClaims, acc *helpers.Access) {
+	roles, permissions, ok := acc.GetUserAccess(c.Request.Context())
+	if !ok {
+		roles, permissions = claims.Roles, claims.Permissions
+	}
+
 	c.Request.Header.Set("X-User-Id", strconv.FormatUint(uint64(claims.UserID), 10))
 	c.Request.Header.Set("X-User-Email", claims.Email)
-	c.Request.Header.Set("X-User-Roles", strings.Join(claims.Roles, ","))
-	c.Request.Header.Set("X-User-Permissions", strings.Join(claims.Permissions, ","))
+	c.Request.Header.Set("X-User-Name", claims.Name)
+	c.Request.Header.Set("X-Trace-Id", helpers.GetTraceID(c.Request.Context()))
+	c.Request.Header.Set("X-User-Roles", strings.Join(roles, ","))
+	c.Request.Header.Set("X-User-Permissions", strings.Join(permissions, ","))
 }
 
 // proxyRequest forwards the request as-is to {service.base_url}{original path} and streams

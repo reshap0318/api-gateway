@@ -8,6 +8,8 @@ type ContextKey string
 const (
 	// KeyUserID is the context key for storing the authenticated user's ID.
 	KeyUserID ContextKey = "user_id"
+	// KeyTraceID is the context key for storing the current request's trace ID.
+	KeyTraceID ContextKey = "trace_id"
 )
 
 // GetCallerID extracts the user ID from the context.
@@ -18,4 +20,14 @@ func GetCallerID(ctx context.Context) uint {
 		return 0
 	}
 	return uid
+}
+
+// GetTraceID extracts the trace ID from the context.
+// Returns "" if the trace ID is not present in the context.
+func GetTraceID(ctx context.Context) string {
+	tid, ok := ctx.Value(KeyTraceID).(string)
+	if !ok {
+		return ""
+	}
+	return tid
 }

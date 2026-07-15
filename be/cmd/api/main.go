@@ -40,6 +40,7 @@ func main() {
 		}
 	}
 
+	r.Use(middleware.TraceID())
 	r.Use(middleware.CORS(allowedOrigins))
 
 	r.Static("/storage", "./storage")
