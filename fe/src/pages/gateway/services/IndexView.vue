@@ -131,7 +131,7 @@ function handlePageChange(page: number) {
 }
 
 onMounted(() => {
-  applyFilters()
+  applyFilters(1)
 })
 </script>
 

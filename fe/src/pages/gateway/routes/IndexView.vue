@@ -91,7 +91,7 @@ async function handleRefreshCache() {
 
 onMounted(async () => {
   allServices.value = await serviceStore.fetchAllServices()
-  fetchRoutes()
+  fetchRoutes(1)
 })
 </script>
 
