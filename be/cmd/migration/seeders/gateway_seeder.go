@@ -8,33 +8,33 @@ import (
 	"gorm.io/gorm"
 )
 
-// SeedGatewayExample orchestrates the full "Toko Service" example dataset in one call:
+// SeedGatewayExample orchestrates the full "Data Master" example dataset in one call:
 // example permissions (merged into the caller's permIDs map, since Go maps are reference
 // types), the example Service, and its example Routes.
 func SeedGatewayExample(db *gorm.DB, permIDs map[string]uint) {
-	for name, id := range SeedTokoPermissions(db) {
+	for name, id := range SeedMasterCategoryPermissions(db) {
 		permIDs[name] = id
 	}
 	SeedGatewayExampleRoutes(db, SeedGatewayExampleService(db), permIDs)
 }
 
-// SeedTokoPermissions inserts example domain permissions for a fictional upstream
-// "Toko" (store management) service. This demonstrates that Route permissions are NOT
-// limited to the built-in RBAC permissions (user.*, role.*, service.*, route.*) — any
-// permission name can be created ad-hoc via Permission Management and assigned to a Route,
-// independent of what module actually owns it.
-func SeedTokoPermissions(db *gorm.DB) map[string]uint {
-	fmt.Println("Seeding example permissions (toko.*)...")
+// SeedMasterCategoryPermissions inserts example domain permissions for a fictional upstream
+// "Data Master" service's Category resource. Permission names are scoped directly to the
+// route/resource (e.g. "master-category.index") rather than reused from the built-in RBAC
+// permissions (user.*, role.*, service.*, route.*), demonstrating that any permission name
+// can be created ad-hoc via Permission Management and assigned to a Route, independent of
+// what module actually owns it.
+func SeedMasterCategoryPermissions(db *gorm.DB) map[string]uint {
+	fmt.Println("Seeding example permissions (master-category.*)...")
 
 	permissions := []struct {
 		Name        string
 		Description string
 	}{
-		{"toko.index", "View toko list (contoh permission upstream Toko Service)"},
-		{"toko.create", "Create new toko (contoh permission upstream Toko Service)"},
-		{"toko.edit", "Update toko (contoh permission upstream Toko Service)"},
-		{"toko.delete", "Delete toko (contoh permission upstream Toko Service)"},
-		{"toko.publish", "Publish toko ke katalog publik (contoh permission upstream Toko Service)"},
+		{"master-category.index", "View category list (contoh permission upstream Data Master)"},
+		{"master-category.create", "Create new category (contoh permission upstream Data Master)"},
+		{"master-category.update", "Update category (contoh permission upstream Data Master)"},
+		{"master-category.delete", "Delete category (contoh permission upstream Data Master)"},
 	}
 
 	resultMap := make(map[string]uint)
@@ -64,12 +64,12 @@ func SeedTokoPermissions(db *gorm.DB) map[string]uint {
 	return resultMap
 }
 
-// SeedGatewayExampleService inserts one example upstream Service — "Toko Service" —
+// SeedGatewayExampleService inserts one example upstream Service — "Data Master" —
 // registered in the API Gateway.
 func SeedGatewayExampleService(db *gorm.DB) uint {
-	fmt.Println("Seeding example gateway service (Toko Service)...")
+	fmt.Println("Seeding example gateway service (Data Master)...")
 
-	const name = "Toko Service"
+	const name = "Data Master"
 
 	var existing models.GatewayService
 	err := db.Where("name = ?", name).First(&existing).Error
@@ -80,8 +80,8 @@ func SeedGatewayExampleService(db *gorm.DB) uint {
 
 	s := models.GatewayService{
 		Name:         name,
-		BaseURL:      "http://localhost:9010",
-		BasePath:     "/toko",
+		BaseURL:      "http://localhost:8081",
+		BasePath:     "/master",
 		Protocol:     "http",
 		IsActive:     true,
 		HealthStatus: "unknown",
@@ -96,16 +96,16 @@ func SeedGatewayExampleService(db *gorm.DB) uint {
 	return s.ID
 }
 
-// SeedGatewayExampleRoutes inserts example Routes under Toko Service, wired to the
-// toko.* permissions above. Demonstrates literal/`:param`/wildcard path patterns, a
-// public (no-permission) route, and both `any`/`all` permission match modes.
+// SeedGatewayExampleRoutes inserts example Routes under Data Master, wired to the
+// master-category.* permissions above. Demonstrates the Category resource's CRUD routes
+// (create/read/update/delete) each guarded by its own dedicated permission.
 func SeedGatewayExampleRoutes(db *gorm.DB, serviceID uint, permIDs map[string]uint) {
 	if serviceID == 0 {
-		log.Println("Toko Service ID is 0, skipping example route seeding")
+		log.Println("Data Master Service ID is 0, skipping example route seeding")
 		return
 	}
 
-	fmt.Println("Seeding example gateway routes (Toko Service)...")
+	fmt.Println("Seeding example gateway routes (Data Master)...")
 
 	type routeSeed struct {
 		Method      string
@@ -114,17 +114,15 @@ func SeedGatewayExampleRoutes(db *gorm.DB, serviceID uint, permIDs map[string]ui
 		Permissions []string
 	}
 
-	// path_pattern is relative to the Service's base_path ("/toko", see
-	// SeedGatewayExampleService) — the publicly-reachable URLs stay the same as before
-	// (e.g. "/toko", "/toko/:id"), the gateway just resolves them as base_path+path_pattern now.
+	// path_pattern is relative to the Service's base_path ("/master", see
+	// SeedGatewayExampleService), so these resolve to e.g. "/master/category",
+	// "/master/category/:id".
 	routes := []routeSeed{
-		{"GET", "/", "any", []string{"toko.index"}},
-		{"GET", "/:id", "any", []string{"toko.index"}},
-		{"POST", "/", "any", []string{"toko.create"}},
-		{"PUT", "/:id", "any", []string{"toko.edit"}},
-		{"DELETE", "/:id", "any", []string{"toko.delete"}},
-		{"POST", "/:id/publish", "all", []string{"toko.edit", "toko.publish"}},
-		{"GET", "/public/*", "any", []string{}},
+		{"GET", "/category", "any", []string{"master-category.index"}},
+		{"GET", "/category/:id", "any", []string{"master-category.index"}},
+		{"POST", "/category", "any", []string{"master-category.create"}},
+		{"PUT", "/category/:id", "any", []string{"master-category.update"}},
+		{"DELETE", "/category/:id", "any", []string{"master-category.delete"}},
 	}
 
 	count := 0

@@ -51,18 +51,10 @@ func (s *Services) PermissionCreate(ctx context.Context, req dtos.PermissionRequ
 	return &dto, nil
 }
 
-// PermissionGetAll returns all permissions.
-func (s *Services) PermissionGetAll(ctx context.Context) ([]dtos.PermissionDTO, error) {
-	permissions, err := s.repo.Permission.FindAll(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return dtos.ToPermissionDTOList(permissions), nil
-}
-
-// PermissionGetAllPaginated returns paginated permissions.
-func (s *Services) PermissionGetAllPaginated(ctx context.Context, opts *repositories.QueryOptions) (*repositories.PagedResult[dtos.PermissionDTO], error) {
+// PermissionGetAll returns permissions. opts.PageSize negative returns all records
+// unpaginated; unset/positive paginates (default page size 10) — either way the response
+// carries pagination metadata.
+func (s *Services) PermissionGetAll(ctx context.Context, opts *repositories.QueryOptions) (*repositories.PagedResult[dtos.PermissionDTO], error) {
 	if opts == nil {
 		opts = &repositories.QueryOptions{}
 	}
@@ -71,6 +63,15 @@ func (s *Services) PermissionGetAllPaginated(ctx context.Context, opts *reposito
 	}
 	if opts.Order == "" {
 		opts.Order = "ASC"
+	}
+
+	if !s.Access.HasPermission(ctx, "role.index-su") {
+		opts.ConditionGroups = append(opts.ConditionGroups, repositories.ConditionGroup{
+			Logic: "AND",
+			Conditions: []repositories.QueryCondition{
+				{Column: "id", Operator: ">", Value: 23},
+			},
+		})
 	}
 
 	result, err := s.repo.Permission.FindAllWithOpts(nil, opts)
@@ -91,6 +92,10 @@ func (s *Services) PermissionGetAllPaginated(ctx context.Context, opts *reposito
 
 // PermissionGetByID returns a permission by ID.
 func (s *Services) PermissionGetByID(ctx context.Context, id uint) (*dtos.PermissionDTO, error) {
+	if id <= 23 && !s.Access.HasPermission(ctx, "role.index-su") {
+		return nil, helpers.ErrForbidden
+	}
+
 	permission, err := s.repo.Permission.FindByID(nil, id)
 	if err != nil {
 		return nil, helpers.ErrNotFound

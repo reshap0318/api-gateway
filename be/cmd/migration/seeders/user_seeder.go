@@ -19,8 +19,7 @@ func SeedUsers(db *gorm.DB) map[string]uint {
 		Name     string
 	}{
 		{"suAdmin@app.com", "@dmin#123", "Super Admin"},
-		{"admin@app.com", "Admin#123", "Admin"},
-		{"editor@app.com", "Editor#123", "Editor"},
+		{"admin@app.com", "Admin#123", "Admin Gateway"},
 		{"viewer@app.com", "Viewer#123", "Viewer"},
 	}
 

@@ -24,7 +24,7 @@ func (s *Services) GatewayRouteCreate(ctx context.Context, req dtos.GatewayRoute
 		return nil, err
 	}
 
-	exists, err := s.repo.GatewayRoute.Exists(nil, map[string]interface{}{
+	exists, err := s.repo.GatewayRoute.ExistsWithMap(nil, map[string]interface{}{
 		"service_id":   req.Service,
 		"method":       req.Method,
 		"path_pattern": req.PathPattern,

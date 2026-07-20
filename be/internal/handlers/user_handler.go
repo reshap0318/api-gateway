@@ -32,31 +32,22 @@ func (h *Handlers) UserCreate(c *gin.Context) {
 	helpers.Created(c, "User created successfully", dto)
 }
 
-// UserGetAll handles GET /api/users with optional pagination
+// UserGetAll handles GET /api/users. page_size unset/negative (default) returns all
+// records unpaginated; page_size>0 paginates. Response always includes metadata.
 func (h *Handlers) UserGetAll(c *gin.Context) {
-	pageStr := c.Query("page")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "-1"))
 
-	if pageStr == "" {
-		// No pagination - return all
-		users, err := h.svcs.UserGetAll(c.Request.Context())
-		if helpers.HandleError(c, err, "Failed to fetch users") {
-			return
-		}
-
-		helpers.OK(c, "Users fetched successfully", users)
-		return
+	if pageSize < 0 {
+		page = 1
 	}
-
-	// Pagination requested
-	page, _ := strconv.Atoi(pageStr)
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
 	opts := &repositories.QueryOptions{
 		Page:     page,
 		PageSize: pageSize,
 	}
 
-	result, err := h.svcs.UserGetAllPaginated(c.Request.Context(), opts)
+	result, err := h.svcs.UserGetAll(c.Request.Context(), opts)
 	if helpers.HandleError(c, err, "Failed to fetch users") {
 		return
 	}

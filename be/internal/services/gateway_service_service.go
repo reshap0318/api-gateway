@@ -16,7 +16,7 @@ import (
 func (s *Services) GatewayServiceCreate(ctx context.Context, req dtos.GatewayServiceRequest) (*dtos.GatewayServiceDTO, error) {
 	s.Logger.LogStart("GatewayServiceCreate", "Creating gateway service: %s", req.Name)
 
-	exists, err := s.repo.GatewayService.Exists(nil, map[string]interface{}{"name": req.Name})
+	exists, err := s.repo.GatewayService.ExistsWithMap(nil, map[string]interface{}{"name": req.Name})
 	if err != nil {
 		s.Logger.LogEndWithError("GatewayServiceCreate", "Failed to check name uniqueness: %v", err)
 		return nil, err
@@ -33,7 +33,7 @@ func (s *Services) GatewayServiceCreate(ctx context.Context, req dtos.GatewaySer
 		return nil, err
 	}
 
-	basePathExists, err := s.repo.GatewayService.Exists(nil, map[string]interface{}{"base_path": req.BasePath})
+	basePathExists, err := s.repo.GatewayService.ExistsWithMap(nil, map[string]interface{}{"base_path": req.BasePath})
 	if err != nil {
 		s.Logger.LogEndWithError("GatewayServiceCreate", "Failed to check base_path uniqueness: %v", err)
 		return nil, err
@@ -160,7 +160,7 @@ func (s *Services) GatewayServiceUpdate(ctx context.Context, id uint, req dtos.G
 	}
 
 	if req.Name != "" && req.Name != existing.Name {
-		exists, err := s.repo.GatewayService.Exists(nil, map[string]interface{}{"name": req.Name})
+		exists, err := s.repo.GatewayService.ExistsWithMap(nil, map[string]interface{}{"name": req.Name})
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func (s *Services) GatewayServiceUpdate(ctx context.Context, id uint, req dtos.G
 			return nil, err
 		}
 
-		basePathExists, err := s.repo.GatewayService.Exists(nil, map[string]interface{}{"base_path": req.BasePath})
+		basePathExists, err := s.repo.GatewayService.ExistsWithMap(nil, map[string]interface{}{"base_path": req.BasePath})
 		if err != nil {
 			return nil, err
 		}

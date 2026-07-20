@@ -17,9 +17,8 @@ func SeedRoles(db *gorm.DB) map[string]uint {
 		Description string
 	}{
 		{"Super Admin", "Full access to all features"},
-		{"Admin", "Manage users, roles, and permissions"},
-		{"Editor", "Manage users and view data"},
-		{"Viewer", "Read-only access"},
+		{"Admin Gateway", "Manage gateway services, routes, permissions, and roles"},
+		{"Viewer", "View gateway routes and services only"},
 	}
 
 	resultMap := make(map[string]uint)
