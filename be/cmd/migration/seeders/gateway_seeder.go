@@ -115,14 +115,14 @@ func SeedGatewayExampleRoutes(db *gorm.DB, serviceID uint, permIDs map[string]ui
 	}
 
 	// path_pattern is relative to the Service's base_path ("/master", see
-	// SeedGatewayExampleService), so these resolve to e.g. "/master/category",
-	// "/master/category/:id".
+	// SeedGatewayExampleService), so these resolve to e.g. "/master/categories",
+	// "/master/categories/:id".
 	routes := []routeSeed{
-		{"GET", "/category", "any", []string{"master-category.index"}},
-		{"GET", "/category/:id", "any", []string{"master-category.index"}},
-		{"POST", "/category", "any", []string{"master-category.create"}},
-		{"PUT", "/category/:id", "any", []string{"master-category.update"}},
-		{"DELETE", "/category/:id", "any", []string{"master-category.delete"}},
+		{"GET", "/categories", "any", []string{"master-category.index"}},
+		{"GET", "/categories/:id", "any", []string{"master-category.index"}},
+		{"POST", "/categories", "any", []string{"master-category.create"}},
+		{"PUT", "/categories/:id", "any", []string{"master-category.update"}},
+		{"DELETE", "/categories/:id", "any", []string{"master-category.delete"}},
 	}
 
 	count := 0
