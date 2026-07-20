@@ -139,9 +139,12 @@ func injectCallerHeaders(c *gin.Context, claims *helpers.JWTClaims, acc *helpers
 	c.Request.Header.Set("X-User-Permissions", strings.Join(permissions, ","))
 }
 
-// proxyRequest forwards the request as-is to {service.base_url}{original path} and streams
-// the upstream response back to the client. params (extracted :param values) are resolved
-// but not rewritten into the forwarded path — the full original path is proxied verbatim.
+// proxyRequest forwards the request to {service.base_url}{path_pattern-relative path} and
+// streams the upstream response back to the client. The Service's base_path is a
+// Gateway-only routing prefix (FSD §2.13) used to pick the matching Service — it is stripped
+// before forwarding, so the upstream only ever sees its own path_pattern (e.g. a request to
+// "/master/category" reaches the upstream as "/category"). params (extracted :param values)
+// are resolved but not rewritten — the remainder of the path is proxied verbatim.
 // route.Proxy is built once per BaseURL at RouteManager.Refresh()-time and shared across
 // requests/routes, rather than allocating a new httputil.ReverseProxy per request.
 func proxyRequest(c *gin.Context, route *CachedRoute, params map[string]string) {
@@ -151,6 +154,13 @@ func proxyRequest(c *gin.Context, route *CachedRoute, params map[string]string) 
 		helpers.InternalServerError(c, "Invalid upstream base URL")
 		return
 	}
+
+	trimmed := strings.TrimPrefix(c.Request.URL.Path, route.BasePath)
+	if !strings.HasPrefix(trimmed, "/") {
+		trimmed = "/" + trimmed
+	}
+	c.Request.URL.Path = trimmed
+	c.Request.URL.RawPath = ""
 
 	route.Proxy.ServeHTTP(c.Writer, c.Request)
 }
